@@ -1,0 +1,20 @@
+{
+  "empresas": [
+    { "ID_Empresa": "EMP-01", "Nombre_Empresa": "Transporte Luna", "Contacto_Directo": "+54 9 351 000000" },
+    { "ID_Empresa": "EMP-02", "Nombre_Empresa": "Servicios Norte", "Contacto_Directo": "+54 9 351 111111" },
+    { "ID_Empresa": "EMP-03", "Nombre_Empresa": "Colectivos Salamandra", "Contacto_Directo": "+54 9 351 222222" }
+  ],
+  "vehiculos": [
+    { "ID_Vehiculo": "V-001", "ID_Empresa": "EMP-01", "Capacidad_Asientos": 15, "Capacidad_Excedente": 2, "Unidades_Disponibles": 1, "Tipo_Vehiculo": "Combi 15" },
+    { "ID_Vehiculo": "V-002", "ID_Empresa": "EMP-02", "Capacidad_Asientos": 19, "Capacidad_Excedente": 3, "Unidades_Disponibles": 1, "Tipo_Vehiculo": "Combi 19" },
+    { "ID_Vehiculo": "V-003", "ID_Empresa": "EMP-03", "Capacidad_Asientos": 40, "Capacidad_Excedente": 5, "Unidades_Disponibles": 1, "Tipo_Vehiculo": "Colectivo" },
+    { "ID_Vehiculo": "V-004", "ID_Empresa": "EMP-01", "Capacidad_Asientos": 4, "Capacidad_Excedente": 0, "Unidades_Disponibles": 1, "Tipo_Vehiculo": "Auto" }
+  ],
+  "rutas": [
+    { "ID_Ruta": "RT-101", "ID_Vehiculo": "V-001", "Origen_Pueblo": "Del Campillo", "Destino_Final": "Vicuña Mackenna", "Modalidad_Cobro": "Viaje Cerrado", "Precio_Base": 60000, "Excedente_Cobra": true, "Recargo_Excedente": 4000 },
+    { "ID_Ruta": "RT-102", "ID_Vehiculo": "V-002", "Origen_Pueblo": "Coronel Moldes", "Destino_Final": "Vicuña Mackenna", "Modalidad_Cobro": "Por Pasajero", "Precio_Base": 8000, "Excedente_Cobra": false, "Recargo_Excedente": 0 },
+    { "ID_Ruta": "RT-103", "ID_Vehiculo": "V-003", "Origen_Pueblo": "Jovita", "Destino_Final": "Vicuña Mackenna", "Modalidad_Cobro": "Viaje Cerrado", "Precio_Base": 120000, "Excedente_Cobra": true, "Recargo_Excedente": 3000 },
+    { "ID_Ruta": "RT-104", "ID_Vehiculo": "V-002", "Origen_Pueblo": "Del Campillo", "Destino_Final": "Vicuña Mackenna", "Modalidad_Cobro": "Por Pasajero", "Precio_Base": 7000, "Excedente_Cobra": false, "Recargo_Excedente": 0 },
+    { "ID_Ruta": "RT-105", "ID_Vehiculo": "V-004", "Origen_Pueblo": "Del Campillo", "Destino_Final": "Vicuña Mackenna", "Modalidad_Cobro": "Por Pasajero", "Precio_Base": 2000, "Excedente_Cobra": false, "Recargo_Excedente": 0 }
+  ]
+}
