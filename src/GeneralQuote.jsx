@@ -28,7 +28,7 @@ export default function GeneralQuote() {
           setData(remote)
           return
         }
-        const r = await fetch('/data.json')
+        const r = await fetch(import.meta.env.BASE_URL + 'data.json')
         if (r.ok) {
           const json = await r.json()
           if (!mounted) return
@@ -227,13 +227,17 @@ export default function GeneralQuote() {
             if (!k.startsWith('x_')) return
             if (solution[k] >= 0.5) {
               // assigned
-              const [, resId, instanceId] = k.split('_')
-              const ci = candidateInstances.find(x => x.resId === Number(resId) && x.instanceId === instanceId)
+              const underIdx = k.indexOf('_', 2); const resId = k.slice(2, underIdx); const instanceId = k.slice(underIdx + 1)
+              const ci = candidateInstances.find(x => String(x.resId) === resId && x.instanceId === instanceId)
               if (!ci) return
-              const reservation = reservations.find(r => r.id === Number(resId))
+              const reservation = reservations.find(r => String(r.id) === resId)
+              if (!reservation) return
               const allocCount = Math.min(ci.seats + (allowExcedente ? ci.extra : 0), reservation.Pasajeros)
+              const empresa = data.empresas.find(x => x.ID_Empresa === ci.vehiculo.ID_Empresa) || {}
               if (!mapAlloc[resId]) mapAlloc[resId] = []
-              mapAlloc[resId].push({ route: ci.ruta, allocated: allocCount, revenue: reservation.PrecioCobrado * allocCount, cost: ci.ruta.Modalidad_Cobro === 'Viaje Cerrado' ? Number(ci.ruta.Precio_Base) : Number(ci.ruta.Precio_Base) * allocCount, profit: (reservation.PrecioCobrado * allocCount) - (ci.ruta.Modalidad_Cobro === 'Viaje Cerrado' ? Number(ci.ruta.Precio_Base) : Number(ci.ruta.Precio_Base) * allocCount) })
+              const costILP = ci.ruta.Modalidad_Cobro === 'Viaje Cerrado' ? Number(ci.ruta.Precio_Base) : Number(ci.ruta.Precio_Base) * allocCount
+              const revenueILP = reservation.PrecioCobrado * allocCount
+              mapAlloc[resId].push({ route: { ...ci.ruta, vehiculo: ci.vehiculo, empresa }, allocated: allocCount, revenue: revenueILP, cost: costILP, profit: revenueILP - costILP, extraUsed: 0 })
             }
           })
 
@@ -309,7 +313,7 @@ export default function GeneralQuote() {
               <div>
                 <ul>
                   {resRes.allocations.map((a, i) => (
-                    <li key={i}>{a.route.ID_Ruta} — {a.route.empresa.Nombre_Empresa} — {a.route.vehiculo.Tipo_Vehiculo} : asignadas {a.allocated} pax, ingresos {formatCurrency(a.revenue)}, costo {formatCurrency(a.cost)}, ganancia {formatCurrency(a.profit)} {a.extraUsed ? `(extra usado: ${a.extraUsed})` : ''}</li>
+                    <li key={i}>{a.route.ID_Ruta} — {a.route?.empresa?.Nombre_Empresa ?? '—'} — {a.route?.vehiculo?.Tipo_Vehiculo ?? '—'} : asignadas {a.allocated} pax, ingresos {formatCurrency(a.revenue)}, costo {formatCurrency(a.cost)}, ganancia {formatCurrency(a.profit)} {a.extraUsed ? `(extra usado: ${a.extraUsed})` : ''}</li>
                   ))}
                 </ul>
                 {resRes.unassigned > 0 && <p style={{color:'#a60'}}>Faltan {resRes.unassigned} plazas sin asignar</p>}

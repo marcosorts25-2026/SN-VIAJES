@@ -52,7 +52,7 @@ function saveLocal(obj) {
 export async function loadData() {
   // prefer public data.json if present (static file)
   try {
-    const r = await fetch('/data.json')
+    const r = await fetch(import.meta.env.BASE_URL + 'data.json')
     if (r.ok) {
       const json = await r.json()
       // save to local as well

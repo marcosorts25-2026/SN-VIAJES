@@ -31,7 +31,7 @@ export default function QuoteEngine() {
           setData(remote)
           return
         }
-        const r = await fetch('/data.json')
+        const r = await fetch(import.meta.env.BASE_URL + 'data.json')
         if (r.ok) {
           const json = await r.json()
           if (!mounted) return
