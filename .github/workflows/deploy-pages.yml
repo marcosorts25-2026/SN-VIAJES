@@ -24,7 +24,7 @@ jobs:
         if: ${{ secrets.FIREBASE_API_KEY != '' }}
         run: |
           mkdir -p public
-          cat > public/firebase-config.json <<'EOF'
+          cat > public/firebase-config.json <<EOF
           {
             "apiKey": "${{ secrets.FIREBASE_API_KEY }}",
             "authDomain": "${{ secrets.FIREBASE_AUTH_DOMAIN }}",
