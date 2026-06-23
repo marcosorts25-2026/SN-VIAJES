@@ -19,9 +19,12 @@ jobs:
         with:
           node-version: '18'
       - name: Install dependencies
-        run: npm ci
+        run: npm install --verbose
       - name: Build
         run: npm run build
+      - name: List dist folder
+        if: always()
+        run: ls -la dist/ 2>/dev/null || echo "dist folder not found"
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v1
         with:
