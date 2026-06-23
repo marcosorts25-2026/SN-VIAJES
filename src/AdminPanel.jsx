@@ -1,6 +1,6 @@
 import React from 'react'
 import SAMPLE from './data/sampleData'
-import { loadData as loadRemoteData, saveData as saveRemoteData, isRemoteAvailable } from './sync'
+import { loadData as loadRemoteData, saveData as saveRemoteData, isRemoteAvailable, restoreLatestBackup } from './sync'
 
 export default function AdminPanel() {
   const [data, setData] = React.useState(() => SAMPLE)
@@ -43,6 +43,17 @@ export default function AdminPanel() {
     setData(SAMPLE)
     saveRemoteData(SAMPLE)
     alert('Datos restaurados desde ejemplo')
+  }
+
+  function restoreBackupData() {
+    const restored = restoreLatestBackup()
+    if (!restored) {
+      alert('No hay respaldo local disponible para recuperar.')
+      return
+    }
+    setData(restored)
+    saveRemoteData(restored)
+    alert('Respaldo local recuperado con éxito.')
   }
 
   function exportJSON() {
@@ -208,6 +219,7 @@ export default function AdminPanel() {
 
       <div style={{display:'flex', gap:'.5rem', marginTop:'.5rem', flexWrap:'wrap'}}>
         <button onClick={resetSample}>Restaurar datos de ejemplo</button>
+        <button onClick={restoreBackupData}>Recuperar ultimo respaldo</button>
         <button onClick={exportJSON}>Exportar JSON</button>
         <label style={{background:'#eee', padding:'.4rem', borderRadius:6, cursor:'pointer'}}>Importar JSON<input type="file" accept="application/json" style={{display:'none'}} onChange={e => importJSON(e.target.files[0])} /></label>
       </div>
