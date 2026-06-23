@@ -69,7 +69,8 @@ export default function GeneralQuote() {
       const C = Number(res.PrecioCobrado || 0)
       // build candidates replicating units disponibles; respect allowExcedente flag
       const candidates = []
-      data.rutas.filter(r => r.Origen_Pueblo === res.Origen_Pueblo).forEach(r => {
+      const origenNorm = (res.Origen_Pueblo || '').trim().toLowerCase()
+      data.rutas.filter(r => (r.Origen_Pueblo || '').trim().toLowerCase() === origenNorm).forEach(r => {
         const v = data.vehiculos.find(x => x.ID_Vehiculo === r.ID_Vehiculo) || {}
         const e = data.empresas.find(x => x.ID_Empresa === v.ID_Empresa) || {}
         const seats = Number(v.Capacidad_Asientos ?? v.Capacidad_Maxima ?? 0)
@@ -168,7 +169,8 @@ export default function GeneralQuote() {
     try {
       const candidateInstances = []
       reservations.forEach(res => {
-        data.rutas.filter(r => r.Origen_Pueblo === res.Origen_Pueblo).forEach(r => {
+        const origenNormILP = (res.Origen_Pueblo || '').trim().toLowerCase()
+        data.rutas.filter(r => (r.Origen_Pueblo || '').trim().toLowerCase() === origenNormILP).forEach(r => {
           const v = data.vehiculos.find(x => x.ID_Vehiculo === r.ID_Vehiculo) || {}
           const units = Math.max(1, Number(v.Unidades_Disponibles ?? 1))
           const seats = Number(v.Capacidad_Asientos ?? v.Capacidad_Maxima ?? 0)

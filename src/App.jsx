@@ -44,8 +44,6 @@ export default function App() {
       </header>
 
       <main className="app-main">
-        <p>Esta es una plantilla mínima. Personaliza la UI y funcionalidades.</p>
-
         {deferredPrompt && (
           <button className="install-btn" onClick={installApp}>Instalar aplicación</button>
         )}
