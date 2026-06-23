@@ -3,6 +3,33 @@ const CotizadorLazy = React.lazy(() => import('./QuoteEngine'))
 const AdminLazy = React.lazy(() => import('./AdminPanel'))
 const GeneralQuoteLazy = React.lazy(() => import('./GeneralQuote'))
 
+class LazyViewErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false }
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+
+  componentDidCatch(error) {
+    console.error('Lazy view render failed', error)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '0.75rem', border: '1px solid #ddd', borderRadius: 8 }}>
+          <p>No se pudo cargar esta vista. Puede ser una actualizacion pendiente de la app instalada.</p>
+          <button onClick={() => window.location.reload()}>Recargar aplicacion</button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
 export default function App() {
   const [deferredPrompt, setDeferredPrompt] = React.useState(null)
   const [view, setView] = React.useState(null) // null | 'pc' | 'mobile'
@@ -122,9 +149,11 @@ export default function App() {
             <h2>Cotizador</h2>
             <p>Motor de cotización básico integrado. Usa datos de ejemplo; luego puedo conectarlo a una base de datos real.</p>
             <div style={{marginTop: '1rem'}}>
-              <React.Suspense fallback={<div>Cargando cotizador...</div>}>
-                <CotizadorLazy />
-              </React.Suspense>
+              <LazyViewErrorBoundary>
+                <React.Suspense fallback={<div>Cargando cotizador...</div>}>
+                  <CotizadorLazy />
+                </React.Suspense>
+              </LazyViewErrorBoundary>
             </div>
           </section>
         )}
@@ -134,9 +163,11 @@ export default function App() {
             <button className="back" onClick={() => setView(null)}>← Volver</button>
             <h2>Cotización general</h2>
             <div style={{marginTop: '1rem'}}>
-              <React.Suspense fallback={<div>Cargando cotización general...</div>}>
-                <GeneralQuoteLazy />
-              </React.Suspense>
+              <LazyViewErrorBoundary>
+                <React.Suspense fallback={<div>Cargando cotización general...</div>}>
+                  <GeneralQuoteLazy />
+                </React.Suspense>
+              </LazyViewErrorBoundary>
             </div>
           </section>
         )}

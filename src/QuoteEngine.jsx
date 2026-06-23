@@ -2,6 +2,17 @@ import React from 'react'
 import SAMPLE from './data/sampleData'
 import { loadData as loadRemoteData, saveData as saveRemoteData } from './sync'
 
+const BASE_URL = import.meta.env.BASE_URL || '/'
+
+function normalizeData(raw) {
+  if (!raw || typeof raw !== 'object') return SAMPLE
+  return {
+    empresas: Array.isArray(raw.empresas) ? raw.empresas : [],
+    vehiculos: Array.isArray(raw.vehiculos) ? raw.vehiculos : [],
+    rutas: Array.isArray(raw.rutas) ? raw.rutas : []
+  }
+}
+
 function formatCurrency(value) {
   try {
     return value.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })
@@ -28,15 +39,16 @@ export default function QuoteEngine() {
         // prefer static public file or remote
         const remote = await loadRemoteData()
         if (remote && mounted) {
-          setData(remote)
+          setData(normalizeData(remote))
           return
         }
-        const r = await fetch(import.meta.env.BASE_URL + 'data.json')
+        const r = await fetch(`${BASE_URL}data.json`)
         if (r.ok) {
           const json = await r.json()
           if (!mounted) return
-          setData(json)
-          try { await saveRemoteData(json) } catch (e) {}
+          const normalized = normalizeData(json)
+          setData(normalized)
+          try { await saveRemoteData(normalized) } catch (e) {}
         }
       } catch (e) {
         // ignore and keep SAMPLE/local
@@ -71,7 +83,10 @@ export default function QuoteEngine() {
     })
   }, [results])
 
-  const origenes = Array.from(new Set(data.rutas.map(r => r.Origen_Pueblo)))
+  const rutas = Array.isArray(data?.rutas) ? data.rutas : []
+  const vehiculos = Array.isArray(data?.vehiculos) ? data.vehiculos : []
+  const empresas = Array.isArray(data?.empresas) ? data.empresas : []
+  const origenes = Array.from(new Set(rutas.map(r => r.Origen_Pueblo)))
 
   function calculate() {
     const P = parseInt(pasajeros, 10) || 0
@@ -81,9 +96,9 @@ export default function QuoteEngine() {
     }
 
     // join rutas with vehiculos and empresas
-    const joined = data.rutas.map(r => {
-      const v = data.vehiculos.find(x => x.ID_Vehiculo === r.ID_Vehiculo) || {}
-      const e = data.empresas.find(x => x.ID_Empresa === v.ID_Empresa) || {}
+    const joined = rutas.map(r => {
+      const v = vehiculos.find(x => x.ID_Vehiculo === r.ID_Vehiculo) || {}
+      const e = empresas.find(x => x.ID_Empresa === v.ID_Empresa) || {}
       return { ...r, vehiculo: v, empresa: e }
     })
 

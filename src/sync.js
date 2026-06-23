@@ -1,6 +1,7 @@
 // Módulo de sincronización: intenta usar Firebase Realtime Database si existe
 // Si no hay configuración disponible, fallback a localStorage.
-const FIREBASE_CONFIG_PATH = '/firebase-config.json'
+const BASE_URL = import.meta.env.BASE_URL || '/'
+const FIREBASE_CONFIG_PATH = `${BASE_URL}firebase-config.json`
 
 async function fetchFirebaseConfig() {
   try {
@@ -52,7 +53,7 @@ function saveLocal(obj) {
 export async function loadData() {
   // prefer public data.json if present (static file)
   try {
-    const r = await fetch(import.meta.env.BASE_URL + 'data.json')
+    const r = await fetch(`${BASE_URL}data.json`)
     if (r.ok) {
       const json = await r.json()
       // save to local as well

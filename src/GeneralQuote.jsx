@@ -3,6 +3,17 @@ import SAMPLE from './data/sampleData'
 import solver from 'javascript-lp-solver'
 import { loadData as loadRemoteData, saveData as saveRemoteData } from './sync'
 
+const BASE_URL = import.meta.env.BASE_URL || '/'
+
+function normalizeData(raw) {
+  if (!raw || typeof raw !== 'object') return SAMPLE
+  return {
+    empresas: Array.isArray(raw.empresas) ? raw.empresas : [],
+    vehiculos: Array.isArray(raw.vehiculos) ? raw.vehiculos : [],
+    rutas: Array.isArray(raw.rutas) ? raw.rutas : []
+  }
+}
+
 function formatCurrency(value) {
   try {
     return Number(value).toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })
@@ -25,15 +36,16 @@ export default function GeneralQuote() {
       try {
         const remote = await loadRemoteData()
         if (remote && mounted) {
-          setData(remote)
+          setData(normalizeData(remote))
           return
         }
-        const r = await fetch('/data.json')
+        const r = await fetch(`${BASE_URL}data.json`)
         if (r.ok) {
           const json = await r.json()
           if (!mounted) return
-          setData(json)
-          try { await saveRemoteData(json) } catch (e) {}
+          const normalized = normalizeData(json)
+          setData(normalized)
+          try { await saveRemoteData(normalized) } catch (e) {}
         }
       } catch (e) {}
     })()
@@ -61,6 +73,9 @@ export default function GeneralQuote() {
   }
 
   function calculateAllocations() {
+    const rutas = Array.isArray(data?.rutas) ? data.rutas : []
+    const vehiculos = Array.isArray(data?.vehiculos) ? data.vehiculos : []
+    const empresas = Array.isArray(data?.empresas) ? data.empresas : []
     const out = []
     let totalUnassigned = 0
 
@@ -70,9 +85,9 @@ export default function GeneralQuote() {
       // build candidates replicating units disponibles; respect allowExcedente flag
       const candidates = []
       const origenNorm = String(res.Origen_Pueblo || '').trim().toLowerCase()
-      data.rutas.filter(r => String(r.Origen_Pueblo || '').trim().toLowerCase() === origenNorm).forEach(r => {
-        const v = data.vehiculos.find(x => x.ID_Vehiculo === r.ID_Vehiculo) || {}
-        const e = data.empresas.find(x => x.ID_Empresa === v.ID_Empresa) || {}
+      rutas.filter(r => String(r.Origen_Pueblo || '').trim().toLowerCase() === origenNorm).forEach(r => {
+        const v = vehiculos.find(x => x.ID_Vehiculo === r.ID_Vehiculo) || {}
+        const e = empresas.find(x => x.ID_Empresa === v.ID_Empresa) || {}
         const seats = Number(v.Capacidad_Asientos ?? v.Capacidad_Maxima ?? 0)
         const extra = Number(v.Capacidad_Excedente ?? 0)
         const units = Math.max(1, Number(v.Unidades_Disponibles ?? 1))
@@ -170,9 +185,9 @@ export default function GeneralQuote() {
       const candidateInstances = []
       reservations.forEach(res => {
         const origenNormILP = String(res.Origen_Pueblo || '').trim().toLowerCase()
-        data.rutas.filter(r => String(r.Origen_Pueblo || '').trim().toLowerCase() === origenNormILP).forEach(r => {
-          const v = data.vehiculos.find(x => x.ID_Vehiculo === r.ID_Vehiculo) || {}
-          const e = data.empresas.find(x => x.ID_Empresa === v.ID_Empresa) || {}
+        rutas.filter(r => String(r.Origen_Pueblo || '').trim().toLowerCase() === origenNormILP).forEach(r => {
+          const v = vehiculos.find(x => x.ID_Vehiculo === r.ID_Vehiculo) || {}
+          const e = empresas.find(x => x.ID_Empresa === v.ID_Empresa) || {}
           const units = Math.max(1, Number(v.Unidades_Disponibles ?? 1))
           const seats = Number(v.Capacidad_Asientos ?? v.Capacidad_Maxima ?? 0)
           const extra = Number(v.Capacidad_Excedente ?? 0)
@@ -262,7 +277,8 @@ export default function GeneralQuote() {
     setResults({ perReservation: out, totalUnassigned })
   }
 
-  const origenes = Array.from(new Set(data.rutas.map(r => r.Origen_Pueblo)))
+  const rutasDisponibles = Array.isArray(data?.rutas) ? data.rutas : []
+  const origenes = Array.from(new Set(rutasDisponibles.map(r => r.Origen_Pueblo)))
 
   return (
     <div className="general-quote">
@@ -310,7 +326,7 @@ export default function GeneralQuote() {
               <div>
                 <ul>
                   {resRes.allocations.map((a, i) => (
-                    <li key={i}>{a.route.ID_Ruta} — {a.route.empresa.Nombre_Empresa} — {a.route.vehiculo.Tipo_Vehiculo} : asignadas {a.allocated} pax, ingresos {formatCurrency(a.revenue)}, costo {formatCurrency(a.cost)}, ganancia {formatCurrency(a.profit)} {a.extraUsed ? `(extra usado: ${a.extraUsed})` : ''}</li>
+                    <li key={i}>{a.route?.ID_Ruta || 'RUTA'} — {a.route?.empresa?.Nombre_Empresa || 'Empresa s/d'} — {a.route?.vehiculo?.Tipo_Vehiculo || 'Vehiculo s/d'} : asignadas {a.allocated} pax, ingresos {formatCurrency(a.revenue)}, costo {formatCurrency(a.cost)}, ganancia {formatCurrency(a.profit)} {a.extraUsed ? `(extra usado: ${a.extraUsed})` : ''}</li>
                   ))}
                 </ul>
                 {resRes.unassigned > 0 && <p style={{color:'#a60'}}>Faltan {resRes.unassigned} plazas sin asignar</p>}
