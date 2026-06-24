@@ -1693,7 +1693,7 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
   return (
     <div className="general-quote">
       <h2>Reservas por pueblo por hoja de ruta</h2>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+      <div className="mobile-action-row" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
         <button type="button" className="secondary" onClick={saveActiveSheetDraft}>Guardar hoja</button>
       </div>
       <p>
@@ -1720,7 +1720,7 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
 
       <section>
         <h3>Historial operativo</h3>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+        <div className="mobile-action-row" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
           <button onClick={addNewSheet}>Nueva hoja</button>
           <button onClick={duplicateActiveSheet}>Duplicar hoja actual</button>
         </div>
@@ -1734,7 +1734,7 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
                   <div className="subtle-quote">Destino: {sheet.destinationCity || 'Sin destino'}</div>
                   <div className="subtle-quote">Pasajeros cargados: {totalDemandForSheet(sheet)}</div>
                 </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <div className="mobile-action-row sheet-actions" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <button onClick={() => { setActiveSheetId(sheet.id) }}>
                     Abrir
                   </button>
@@ -1748,18 +1748,18 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
 
       <section>
         <h3>Datos del evento</h3>
-        <div style={{ display: 'grid', gap: 8 }}>
-          <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div className="mobile-field-stack" style={{ display: 'grid', gap: 8 }}>
+          <label className="mobile-field-row" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <span style={{ minWidth: 160 }}>Fecha del evento</span>
             <input type="date" value={activeSheet.eventDate || ''} onChange={e => setActiveField('eventDate', e.target.value)} />
           </label>
 
-          <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <label className="mobile-field-row" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <span style={{ minWidth: 160 }}>Evento / referencia</span>
             <input type="text" value={activeSheet.eventName || ''} onChange={e => setActiveField('eventName', e.target.value)} placeholder="Ej: Isis Viernes" />
           </label>
 
-          <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <label className="mobile-field-row" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <span style={{ minWidth: 160 }}>Destino final</span>
             <input
               list="destination-list"
@@ -1772,10 +1772,10 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
             </datalist>
           </label>
 
-          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-            <span style={{ minWidth: 160 }}>Empresas a considerar</span>
-            <div style={{ display: 'grid', gap: 6 }}>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div className="mobile-field-row mobile-field-row--top" style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <span className="mobile-field-label" style={{ minWidth: 160 }}>Empresas a considerar</span>
+            <div className="mobile-field-body" style={{ display: 'grid', gap: 6 }}>
+              <div className="mobile-action-row" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <button type="button" onClick={clearCompanyFilter}>Sin filtro</button>
                 <button type="button" onClick={selectAllCompanies}>Seleccionar todas</button>
               </div>
@@ -1805,7 +1805,7 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
             </div>
           </div>
 
-          <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <label className="mobile-field-row mobile-checkbox-row" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input
               type="checkbox"
               checked={true}
@@ -1821,15 +1821,15 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
         <h3>Reservas por pueblo para {activeSheet.destinationCity || 'destino sin definir'}</h3>
         {origins.length === 0 && <p>No hay rutas cargadas para este destino final.</p>}
         {origins.length > 0 && (
-          <div style={{ display: 'grid', gap: 8 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(150px, 1fr) 120px 150px', gap: 8, alignItems: 'center', fontWeight: 700 }}>
+          <div className="reservation-entry-list" style={{ display: 'grid', gap: 8 }}>
+            <div className="reservation-entry-header" style={{ display: 'grid', gridTemplateColumns: 'minmax(150px, 1fr) 120px 150px', gap: 8, alignItems: 'center', fontWeight: 700 }}>
               <span>Pueblo</span>
               <span style={{ textAlign: 'right' }}>Reservas</span>
               <span style={{ textAlign: 'right' }}>Precio cobrado</span>
             </div>
             {origins.map(origin => (
-              <label key={origin} style={{ display: 'grid', gridTemplateColumns: 'minmax(150px, 1fr) 120px 150px', gap: 8, alignItems: 'center' }}>
-                <span>{origin}</span>
+              <label className="reservation-entry-row" key={origin} style={{ display: 'grid', gridTemplateColumns: 'minmax(150px, 1fr) 120px 150px', gap: 8, alignItems: 'center' }}>
+                <span className="reservation-town">{origin}</span>
                 <input
                   type="number"
                   min="0"
@@ -1850,7 +1850,7 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
           </div>
         )}
 
-        <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div className="mobile-action-row" style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button onClick={calculateBestOptions}>Calcular mejores opciones</button>
           <button onClick={clearDemand}>Limpiar pasajeros de esta hoja</button>
           <button type="button" className="secondary" onClick={saveActiveSheetDraft}>Guardar hoja</button>

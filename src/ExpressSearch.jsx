@@ -140,7 +140,7 @@ export default function ExpressSearch({ onBack }) {
       <p>Buscá transportes por origen y destino sin importar si están libres o ya usados en otra hoja. Sirve para consultar rápido empresa, precio y capacidad.</p>
       <p className="subtle-quote">Cada resultado muestra la empresa resuelta, el traffic, los asientos, el excedente y cuántas unidades tiene disponibles.</p>
 
-      <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', marginBottom: 12 }}>
+      <div className="express-filter-grid" style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', marginBottom: 12 }}>
         <label style={{ display: 'grid', gap: 4 }}>
           <span>Destino inicial</span>
           <input value={origin} onChange={e => setOrigin(e.target.value)} placeholder="Ej: Del Campillo" />
@@ -173,7 +173,44 @@ export default function ExpressSearch({ onBack }) {
         </div>
       </div>
 
-      <div className="table-scroll">
+      <div className="express-mobile-results">
+        {routes.map(route => (
+          <article className="section-card express-result-card" key={`mobile-${route.ID_Ruta}-${route.unitId || route.ID_Vehiculo || route.ID_Empresa || route.Origen_Pueblo}-${route.Destino_Final}`}>
+            <div className="label">{route.companyName}</div>
+            <div className="value">{route.vehicleName}</div>
+            <div className="express-route-line">{route.Origen_Pueblo || 'Sin origen'} a {route.Destino_Final || 'Sin destino'}</div>
+            <dl className="express-result-facts">
+              <div>
+                <dt>Asientos</dt>
+                <dd>{formatNumber(route.seats) || '0'}</dd>
+              </div>
+              <div>
+                <dt>Excedente</dt>
+                <dd>{formatNumber(route.extraSeats) || '0'}</dd>
+              </div>
+              <div>
+                <dt>Unidades</dt>
+                <dd>{formatNumber(route.unitsAvailable) || '0'}</dd>
+              </div>
+              <div>
+                <dt>Precio pax</dt>
+                <dd>{formatCurrency(route.pricePerPax)}</dd>
+              </div>
+              <div>
+                <dt>Precio base</dt>
+                <dd>{formatCurrency(route.basePrice)}</dd>
+              </div>
+              <div>
+                <dt>Recargo</dt>
+                <dd>{formatCurrency(route.recargoExcedente)}</dd>
+              </div>
+            </dl>
+            <div className="subtle-quote">Ruta: {route.ID_Ruta || 'Sin ID'}</div>
+          </article>
+        ))}
+      </div>
+
+      <div className="table-scroll express-desktop-results">
         <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 12, minWidth: 1280 }}>
           <thead>
             <tr>

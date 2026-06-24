@@ -786,9 +786,256 @@ html, body {
 	margin-bottom: 1rem;
 }
 
+.express-mobile-results {
+	display: none;
+}
+
+.express-result-card {
+	display: grid;
+	gap: 0.55rem;
+}
+
+.express-route-line {
+	font-weight: 700;
+	color: #334155;
+	overflow-wrap: anywhere;
+}
+
+.express-result-facts {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 0.5rem;
+	margin: 0;
+}
+
+.express-result-facts div {
+	padding: 0.55rem;
+	border-radius: 12px;
+	background: rgba(248, 250, 252, 0.96);
+	border: 1px solid rgba(226,232,240,0.95);
+}
+
+.express-result-facts dt {
+	font-size: 0.74rem;
+	font-weight: 800;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: #64748b;
+}
+
+.express-result-facts dd {
+	margin: 0.18rem 0 0;
+	font-weight: 800;
+	color: #0f172a;
+}
+
 @media (max-width: 760px) {
 	.express-quote .express-grid {
 		grid-template-columns: 1fr;
+	}
+
+	html,
+	body,
+	#root {
+		width: 100%;
+		max-width: 100%;
+		overflow-x: hidden;
+	}
+
+	.app {
+		width: 100%;
+		max-width: none;
+		padding: 0.55rem;
+		overflow-x: hidden;
+	}
+
+	.app-main {
+		width: 100%;
+		padding: 0.5rem 0;
+		align-items: stretch;
+	}
+
+	.app--inner .app-main {
+		padding-top: 0.25rem;
+	}
+
+	.details {
+		width: 100%;
+		max-width: 100%;
+		box-sizing: border-box;
+		padding: 0.75rem;
+		margin-top: 0.45rem;
+		border-radius: 16px;
+	}
+
+	.details h2 {
+		font-size: 1.18rem;
+	}
+
+	.general-quote,
+	.admin-panel,
+	.quote-engine,
+	.express-quote {
+		width: 100%;
+		max-width: 100%;
+		box-sizing: border-box;
+		padding: 0.7rem;
+		border-radius: 16px;
+	}
+
+	.general-quote > section,
+	.admin-panel > section,
+	.express-quote > section,
+	.express-quote > div {
+		padding: 0.75rem !important;
+		margin-top: 0.7rem !important;
+		margin-bottom: 0.7rem !important;
+		border-radius: 14px !important;
+	}
+
+	.section-grid {
+		grid-template-columns: 1fr;
+		gap: 0.6rem;
+	}
+
+	.section-card {
+		padding: 0.75rem;
+		border-radius: 14px;
+	}
+
+	.section-card .value {
+		font-size: 1.08rem;
+		overflow-wrap: anywhere;
+	}
+
+	.express-filter-grid {
+		grid-template-columns: 1fr !important;
+	}
+
+	.express-desktop-results {
+		display: none !important;
+	}
+
+	.express-mobile-results {
+		display: grid;
+		gap: 0.75rem;
+	}
+
+	.express-result-facts {
+		grid-template-columns: 1fr 1fr;
+	}
+
+	.mobile-field-stack {
+		gap: 0.7rem !important;
+	}
+
+	.mobile-field-row {
+		display: grid !important;
+		grid-template-columns: 1fr !important;
+		align-items: stretch !important;
+		gap: 0.42rem !important;
+		width: 100%;
+	}
+
+	.mobile-checkbox-row {
+		grid-template-columns: auto 1fr !important;
+		align-items: center !important;
+	}
+
+	.mobile-field-row > span,
+	.mobile-field-label {
+		min-width: 0 !important;
+		width: 100% !important;
+	}
+
+	.mobile-field-body {
+		width: 100%;
+		min-width: 0;
+	}
+
+	.mobile-field-row input,
+	.mobile-field-row select,
+	.express-filter-grid input,
+	.express-filter-grid select {
+		width: 100% !important;
+		max-width: 100%;
+		box-sizing: border-box;
+	}
+
+	.mobile-action-row,
+	.report-actions {
+		display: grid !important;
+		grid-template-columns: 1fr !important;
+		gap: 0.5rem !important;
+		width: 100%;
+	}
+
+	.mobile-action-row button,
+	.report-actions button,
+	.details .back {
+		width: 100%;
+		justify-content: center;
+		text-align: center;
+	}
+
+	.sheet-actions {
+		margin-top: 0.55rem;
+	}
+
+	.reservation-entry-header {
+		display: none !important;
+	}
+
+	.reservation-entry-list {
+		gap: 0.62rem !important;
+	}
+
+	.reservation-entry-row {
+		display: grid !important;
+		grid-template-columns: 1fr 1fr !important;
+		gap: 0.55rem !important;
+		align-items: stretch !important;
+		padding: 0.7rem;
+		border-radius: 14px;
+		background: rgba(248,250,252,0.96);
+		border: 1px solid rgba(226,232,240,0.95);
+	}
+
+	.reservation-town {
+		grid-column: 1 / -1;
+		font-weight: 800;
+		color: #0f172a;
+		overflow-wrap: anywhere;
+	}
+
+	.reservation-entry-row input {
+		width: 100% !important;
+		min-width: 0;
+		box-sizing: border-box;
+	}
+
+	.table-scroll {
+		width: calc(100% + 0.5rem);
+		margin-inline: -0.25rem;
+		overflow-x: auto;
+		padding-bottom: 0.5rem;
+	}
+
+	.general-quote table,
+	.express-quote table {
+		font-size: 0.84rem;
+	}
+
+	.general-quote table th,
+	.general-quote table td,
+	.express-quote table th,
+	.express-quote table td {
+		padding: 0.55rem 0.6rem !important;
+	}
+
+	.general-quote p,
+	.express-quote p {
+		line-height: 1.42;
 	}
 }
 .details h2 { margin-top: 0 }
