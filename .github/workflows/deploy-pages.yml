@@ -32,6 +32,16 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Write Firebase config
+        env:
+          FIREBASE_CONFIG_JSON: ${{ secrets.FIREBASE_CONFIG_JSON }}
+        run: |
+          if [ -z "$FIREBASE_CONFIG_JSON" ]; then
+            echo "FIREBASE_CONFIG_JSON secret is missing" >&2
+            exit 1
+          fi
+          printf '%s' "$FIREBASE_CONFIG_JSON" > public/firebase-config.json
+
       - name: Build
         run: npm run build
 

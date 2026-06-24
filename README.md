@@ -109,3 +109,63 @@ Si querés que los datos se sincronicen entre varios celulares (en vez de solo `
 3. El workflow de GitHub Actions escribirá `public/firebase-config.json` usando esos secretos antes de compilar. La app detectará ese archivo y sincronizará `snt_data` con Firebase automáticamente.
 
 Si querés que yo prepare y pruebe todo, lo siguiente que necesitás hacer es subir este repositorio a GitHub (yo no puedo subirlo por vos). Una vez que esté en GitHub, el deploy a Pages será automático en cada push a `main`.
+
+Configuración rápida en este proyecto (sin GitHub)
+-------------------------------------------------
+
+1. Copia `public/firebase-config.example.json` a `public/firebase-config.json`.
+2. Reemplaza los valores `TU_*` con los datos reales de tu proyecto Firebase.
+3. Inicia la app (`npm run dev`) o genera build (`npm run build`).
+
+Notas:
+- `public/firebase-config.json` está ignorado en `.gitignore` para no subir credenciales.
+- Si `public/firebase-config.json` está vacío (`{}`), la app funciona solo local sin nube.
+
+Modo Offline + Sync Entre Dispositivos
+-------------------------------------
+
+Estado actual implementado:
+- La app guarda siempre en `localStorage` (offline-first).
+- Si hay `public/firebase-config.json` válido, sincroniza con Firebase Realtime Database.
+- Si no hay internet, los cambios quedan en cola local y se intentan subir automáticamente al volver la conexión.
+- Los datos usan metadatos de versión/fecha para elegir el más nuevo entre local y nube.
+
+Qué necesitás para usarla en celular sin depender de esta PC:
+1. Publicar la app con HTTPS (Netlify/Vercel/GitHub Pages).
+2. Configurar Firebase (`public/firebase-config.json`) para que todos los dispositivos lean/escriban la misma nube.
+3. Abrir la URL publicada desde cada celular/PC e instalar como PWA (Agregar a pantalla de inicio).
+
+Comportamiento esperado:
+- Cargas datos en celular sin señal: se guardan localmente.
+- Cuando vuelve internet: la cola se sube a Firebase.
+- Otro dispositivo que abra la app: descarga los datos más nuevos desde la nube.
+
+Reglas Firebase Realtime (recomendado)
+--------------------------------------
+
+Para pruebas rápidas podés dejar modo prueba un tiempo corto, pero para producción conviene restringir la escritura.
+
+Regla mínima recomendada para este proyecto (solo permite leer/escribir el nodo usado por la app):
+
+```json
+{
+	"rules": {
+		".read": false,
+		".write": false,
+		"snt_data": {
+			".read": true,
+			".write": true,
+			".validate": "newData.hasChildren(['data'])"
+		}
+	}
+}
+```
+
+Cómo aplicarla:
+1. Firebase Console → Realtime Database → pestaña Reglas.
+2. Reemplazá las reglas actuales por el bloque anterior.
+3. Guardá/Publicá cambios.
+
+Nota:
+- Esta regla es útil para arrancar sin autenticación.
+- Si luego querés máxima seguridad, el siguiente paso es habilitar Firebase Auth y cambiar reglas para que solo usuarios autenticados puedan escribir.

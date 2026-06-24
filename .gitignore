@@ -1,3 +1,7 @@
 node_modules/
 dist/
 /.env
+/public/firebase-config.json
+/release/
+/release2/
+/file.png

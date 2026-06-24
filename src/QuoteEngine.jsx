@@ -1,5 +1,6 @@
 import React from 'react'
 import SAMPLE from './data/sampleData'
+import { mergeTownOptions } from './data/predefinedTowns'
 import { loadData as loadRemoteData, saveData as saveRemoteData } from './sync'
 
 const BASE_URL = import.meta.env.BASE_URL || '/'
@@ -7,9 +8,9 @@ const BASE_URL = import.meta.env.BASE_URL || '/'
 function normalizeData(raw) {
   if (!raw || typeof raw !== 'object') return SAMPLE
   return {
-    empresas: Array.isArray(raw.empresas) ? raw.empresas : [],
-    vehiculos: Array.isArray(raw.vehiculos) ? raw.vehiculos : [],
-    rutas: Array.isArray(raw.rutas) ? raw.rutas : []
+    empresas: Array.isArray(raw.empresas) ? raw.empresas.filter(item => item && typeof item === 'object') : [],
+    vehiculos: Array.isArray(raw.vehiculos) ? raw.vehiculos.filter(item => item && typeof item === 'object') : [],
+    rutas: Array.isArray(raw.rutas) ? raw.rutas.filter(item => item && typeof item === 'object') : []
   }
 }
 
@@ -21,6 +22,16 @@ function formatCurrency(value) {
   }
 }
 
+function companyIdFromRoute(route, vehiculoById) {
+  if (!route || typeof route !== 'object') return ''
+  if (route.ID_Empresa) return route.ID_Empresa
+  if (route.ID_Vehiculo) {
+    const v = vehiculoById.get(route.ID_Vehiculo)
+    return v?.ID_Empresa || ''
+  }
+  return ''
+}
+
 // initial data source: SAMPLE, then try public/data.json or remote via sync
 
 export default function QuoteEngine() {
@@ -29,7 +40,6 @@ export default function QuoteEngine() {
   const [results, setResults] = React.useState(null)
   const [data, setData] = React.useState(() => SAMPLE)
   const [allowExcedente, setAllowExcedente] = React.useState(true)
-  const [charges, setCharges] = React.useState({})
 
   // Try to fetch public data.json on mount (overrides localStorage/sample)
   React.useEffect(() => {
@@ -57,36 +67,14 @@ export default function QuoteEngine() {
     return () => { mounted = false }
   }, [])
 
+  const rutas = Array.isArray(data?.rutas) ? data.rutas.filter(item => item && typeof item === 'object') : []
+  const vehiculos = Array.isArray(data?.vehiculos) ? data.vehiculos.filter(item => item && typeof item === 'object') : []
+  const empresas = Array.isArray(data?.empresas) ? data.empresas.filter(item => item && typeof item === 'object') : []
+  const origenes = mergeTownOptions(rutas.map(r => r?.Origen_Pueblo).filter(Boolean))
+
   React.useEffect(() => {
-    // update origen to first available when data changes
-    const origenes = Array.from(new Set(data.rutas.map(r => r.Origen_Pueblo)))
     if (origenes.length && !origenes.includes(origen)) setOrigen(origenes[0])
-  }, [data])
-
-  // initialize default charge-per-pax values when results arrive
-  React.useEffect(() => {
-    if (!results) return
-    setCharges(prev => {
-      const copy = { ...prev }
-      results.forEach(r => {
-        if (copy[r.ID_Ruta] === undefined) {
-          if (r.Modalidad_Cobro === 'Viaje Cerrado') {
-            const seats = Number(r.vehiculo.Capacidad_Asientos ?? r.vehiculo.Capacidad_Maxima ?? 0)
-            const suggested = Math.ceil(Number(r.Precio_Base) / Math.max(1, seats))
-            copy[r.ID_Ruta] = suggested
-          } else {
-            copy[r.ID_Ruta] = Number(r.Precio_Base)
-          }
-        }
-      })
-      return copy
-    })
-  }, [results])
-
-  const rutas = Array.isArray(data?.rutas) ? data.rutas : []
-  const vehiculos = Array.isArray(data?.vehiculos) ? data.vehiculos : []
-  const empresas = Array.isArray(data?.empresas) ? data.empresas : []
-  const origenes = Array.from(new Set(rutas.map(r => r.Origen_Pueblo)))
+  }, [origenes, origen])
 
   function calculate() {
     const P = parseInt(pasajeros, 10) || 0
@@ -95,42 +83,75 @@ export default function QuoteEngine() {
       return
     }
 
-    // join rutas with vehiculos and empresas
-    const joined = rutas.map(r => {
-      const v = vehiculos.find(x => x.ID_Vehiculo === r.ID_Vehiculo) || {}
-      const e = empresas.find(x => x.ID_Empresa === v.ID_Empresa) || {}
-      return { ...r, vehiculo: v, empresa: e }
-    })
+    // Mapas para búsqueda rápida
+    const empresasById = new Map((empresas || []).filter(Boolean).map(e => [e.ID_Empresa, e]))
+    const vehiculosByCompany = new Map()
+    const vehiculosValidos = (vehiculos || []).filter(v => v && typeof v === 'object')
+    const vehiculosById = new Map(vehiculosValidos.map(v => [v.ID_Vehiculo, v]))
 
-    // filter by origin and capacity (considera asientos + excedente si está permitido)
-    const viable = joined.filter(item => {
-      if (item.Origen_Pueblo !== origen) return false
-      const seats = Number(item.vehiculo.Capacidad_Asientos ?? item.vehiculo.Capacidad_Maxima ?? 0)
-      const extra = Number(item.vehiculo.Capacidad_Excedente ?? 0)
-      const total = seats + extra
-      return allowExcedente ? total >= P : seats >= P
-    })
-
-    const computed = viable.map(item => {
-      const precio = Number(item.Precio_Base)
-      const seats = Number(item.vehiculo.Capacidad_Asientos ?? item.vehiculo.Capacidad_Maxima ?? 0)
-      const extraAllowed = Number(item.vehiculo.Capacidad_Excedente ?? 0)
-      const extraUsed = Math.max(0, P - seats)
-      const extraChargeFromRoute = (extraUsed > 0 && item.Excedente_Cobra) ? (Number(item.Recargo_Excedente || 0) * extraUsed) : 0
-      let C_total = 0
-      let C_pax = 0
-      if (item.Modalidad_Cobro === 'Viaje Cerrado') {
-        C_total = precio + extraChargeFromRoute
-        C_pax = C_total / P
-      } else {
-        C_total = precio * P + extraChargeFromRoute
-        C_pax = C_total / P
+    vehiculosValidos.forEach(v => {
+      if (!vehiculosByCompany.has(v.ID_Empresa)) {
+        vehiculosByCompany.set(v.ID_Empresa, [])
       }
-      return { ...item, C_total, C_pax, seats, extraAllowed, extraUsed, extraChargeFromRoute }
+      vehiculosByCompany.get(v.ID_Empresa).push(v)
     })
 
-    computed.sort((a, b) => a.C_total - b.C_total)
-    setResults(computed)
+    // Para cada ruta que sale desde el origen seleccionado
+    const rutasDesdeOrigen = (rutas || []).filter(r => r && r.Origen_Pueblo === origen)
+    
+    // Expandir: para cada ruta, crear un resultado por cada vehículo de su empresa
+    const quoteResults = []
+    rutasDesdeOrigen.forEach(ruta => {
+      const companyId = companyIdFromRoute(ruta, vehiculosById)
+      const empresa = empresasById.get(companyId) || {}
+
+      let vehiculosEmpresa = []
+      if (ruta.ID_Vehiculo) {
+        const linked = vehiculosById.get(ruta.ID_Vehiculo)
+        vehiculosEmpresa = linked ? [linked] : []
+      } else {
+        vehiculosEmpresa = vehiculosByCompany.get(companyId) || []
+      }
+      
+      vehiculosEmpresa.forEach(vehiculo => {
+        if (!vehiculo) return
+        const seats = Number(vehiculo.Capacidad_Asientos ?? vehiculo.Capacidad_Maxima ?? 0)
+        const extra = Number(vehiculo.Capacidad_Excedente ?? 0)
+        const total = seats + (allowExcedente ? extra : 0)
+        
+        // Verificar capacidad
+        if (allowExcedente ? total >= P : seats >= P) {
+          const precio = Number(ruta.Precio_Base)
+          const extraUsed = Math.max(0, P - seats)
+          const extraChargeFromRoute = (extraUsed > 0 && ruta.Excedente_Cobra) ? (Number(ruta.Recargo_Excedente || 0) * extraUsed) : 0
+          
+          let C_total = 0
+          let C_pax = 0
+          if (ruta.Modalidad_Cobro === 'Viaje Cerrado') {
+            C_total = precio + extraChargeFromRoute
+            C_pax = C_total / P
+          } else {
+            C_total = precio * P + extraChargeFromRoute
+            C_pax = C_total / P
+          }
+          
+          quoteResults.push({
+            ...ruta,
+            vehiculo,
+            empresa,
+            C_total,
+            C_pax,
+            seats,
+            extraAllowed: extra,
+            extraUsed,
+            extraChargeFromRoute
+          })
+        }
+      })
+    })
+
+    quoteResults.sort((a, b) => a.C_total - b.C_total)
+    setResults(quoteResults)
   }
 
   function copyResultText(item) {
@@ -160,19 +181,29 @@ export default function QuoteEngine() {
 
         {results && results.length > 0 && (
           <div>
-            <p>Se muestran {results.length} opción(es). La primera es la recomendada por menor costo.</p>
+                <div className="section-grid">
+                  <div className="section-card">
+                    <div className="label">Opciones encontradas</div>
+                    <div className="value">{results.length}</div>
+                    <div className="hint">La primera opción es la de menor costo total.</div>
+                  </div>
+                  <div className="section-card">
+                    <div className="label">Origen seleccionado</div>
+                    <div className="value">{origen || 'Sin definir'}</div>
+                    <div className="hint">Compara vehículos de esa salida en tiempo real.</div>
+                  </div>
+                </div>
             <div className="result-list">
               {results.map((r, i) => {
-                const seats = Number(r.vehiculo.Capacidad_Asientos ?? r.vehiculo.Capacidad_Maxima ?? 0)
-                const extraAllowed = Number(r.vehiculo.Capacidad_Excedente ?? 0)
+                const seats = Number(r.vehiculo?.Capacidad_Asientos ?? r.vehiculo?.Capacidad_Maxima ?? 0)
+                const extraAllowed = Number(r.vehiculo?.Capacidad_Excedente ?? 0)
                 const Pnum = parseInt(pasajeros, 10) || 0
                 const extraPassengers = Math.max(0, Pnum - seats)
                 const extraChargeFromExcedente = (r.Excedente_Cobra ? (Number(r.Recargo_Excedente || 0) * extraPassengers) : 0)
 
-                // suggested per-seat when trip is closed
+                // usar precio por pasajero definido en la ruta
+                const chargePerPax = Number(r.Precio_Por_Pasajero || 0)
                 const baseTripCost = Number(r.Precio_Base)
-                const suggestedPerSeat = r.Modalidad_Cobro === 'Viaje Cerrado' ? Math.ceil(baseTripCost / Math.max(1, seats)) : Number(r.Precio_Base)
-                const chargePerPax = Number(charges[r.ID_Ruta] ?? suggestedPerSeat)
 
                 // revenue/profit calculations
                 const revenueIfFull = chargePerPax * seats
@@ -181,32 +212,31 @@ export default function QuoteEngine() {
                 const profitActual = revenueActual - baseTripCost
 
                 return (
-                  <article key={r.ID_Ruta} className={`result-card ${i === 0 ? 'recommended' : ''} ${extraPassengers>0 ? 'excedente' : ''}`}>
+                  <article key={`${r.ID_Ruta || 'R'}-${r.vehiculo?.ID_Vehiculo || 'V'}-${i}`} className={`result-card ${i === 0 ? 'recommended' : ''} ${extraPassengers>0 ? 'excedente' : ''}`}>
                     {i === 0 && <div className="badge">Recomendada</div>}
                     {extraPassengers > 0 && <div className="badge excedente">Excedente</div>}
-                    <h3>{r.empresa.Nombre_Empresa} — {r.vehiculo.Tipo_Vehiculo}</h3>
+                    <h3>{r.empresa?.Nombre_Empresa || 'Empresa s/d'} — {r.vehiculo?.Tipo_Vehiculo || r.vehiculo?.ID_Vehiculo || 'Vehículo s/d'}</h3>
                     <div className="meta">
                       <span>Capacidad: {seats} asientos{extraAllowed ? ` +${extraAllowed} extra` : ''}</span>
                       <span>Modalidad: {r.Modalidad_Cobro}</span>
+                      {r.vehiculo?.Modelo_Transporte && <span>Modelo: {r.vehiculo.Modelo_Transporte}</span>}
+                      <span>Confort: {r.vehiculo?.Nivel_Confort || 'Estandar'}</span>
+                      {r.vehiculo?.Detalle_Confort && <span>Detalle: {r.vehiculo.Detalle_Confort}</span>}
                     </div>
 
                     <div className="prices">
                       <div>Precio base: <strong>{formatCurrency(r.Precio_Base)}</strong></div>
-                      {r.Modalidad_Cobro === 'Viaje Cerrado' && (
-                        <div>Sugerido por asiento: <strong>{formatCurrency(suggestedPerSeat)}</strong></div>
-                      )}
-                      <div style={{display:'flex', gap:8, alignItems:'center', marginTop:6}}>
-                        <label style={{fontSize:12}}>Cobrar por pax</label>
-                        <input type="number" min="0" value={charges[r.ID_Ruta] ?? suggestedPerSeat} onChange={e => setCharges(prev => ({ ...prev, [r.ID_Ruta]: Number(e.target.value) }))} />
-                      </div>
+                      <div>Precio por pasajero (que cobras): <strong className={chargePerPax > 0 ? 'metric-positive' : 'metric-warning'}>{formatCurrency(chargePerPax)}</strong></div>
 
-                      <div>Ingresos si llena asientos: <strong>{formatCurrency(revenueIfFull)}</strong></div>
+                      <div>Ingresos si llena {seats} asientos: <strong>{formatCurrency(revenueIfFull)}</strong></div>
                       <div>Ingresos por {Pnum} pax: <strong>{formatCurrency(revenueActual)}</strong></div>
                       {extraPassengers > 0 && (
-                        <div>Recargo por {extraPassengers} excedente(s): <strong>{formatCurrency(extraChargeFromExcedente)}</strong></div>
+                        <div>Recargo por {extraPassengers} excedente(s): <strong className="attention-chip">{formatCurrency(extraChargeFromExcedente)}</strong></div>
                       )}
-                      <div>Ganancia (si llena): <strong>{formatCurrency(profitIfFull)}</strong></div>
-                      <div>Ganancia (actual): <strong>{formatCurrency(profitActual)}</strong></div>
+                      <div style={{marginTop:8, paddingTop:8, borderTop:'1px solid #ddd'}}>
+                        <div>Ganancia si llena {seats} asientos: <strong className={profitIfFull >= 0 ? 'metric-positive' : 'metric-negative'}>{formatCurrency(profitIfFull)}</strong></div>
+                        <div>Ganancia real ({Pnum} pax): <strong className={profitActual >= 0 ? 'metric-positive' : 'metric-negative'} style={{fontSize:'1.1em'}}>{formatCurrency(profitActual)}</strong></div>
+                      </div>
                     </div>
 
                     <div className="actions">
