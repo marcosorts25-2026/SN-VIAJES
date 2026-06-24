@@ -1761,15 +1761,16 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
 
           <label className="mobile-field-row" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <span style={{ minWidth: 160 }}>Destino final</span>
-            <input
-              list="destination-list"
+            <select
               value={activeSheet.destinationCity || ''}
               onChange={e => setDestination(e.target.value)}
-              placeholder="Ej: Vicuña Mackenna"
-            />
-            <datalist id="destination-list">
+            >
+              <option value="">Seleccionar destino</option>
+              {activeSheet.destinationCity && !destinationOptions.includes(activeSheet.destinationCity) && (
+                <option value={activeSheet.destinationCity}>{activeSheet.destinationCity}</option>
+              )}
               {destinationOptions.map(dest => <option key={dest} value={dest} />)}
-            </datalist>
+            </select>
           </label>
 
           <div className="mobile-field-row mobile-field-row--top" style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap' }}>
