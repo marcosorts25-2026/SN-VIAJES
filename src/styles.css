@@ -997,15 +997,14 @@ html, body {
 		align-items: stretch !important;
 		padding: 0.7rem;
 		border-radius: 14px;
-		background: rgba(15, 23, 42, 0.9) !important;
-		border: 1px solid rgba(148, 163, 184, 0.42) !important;
-		box-shadow: 0 8px 18px rgba(2, 6, 23, 0.26);
+		background: rgba(248,250,252,0.96);
+		border: 1px solid rgba(226,232,240,0.95);
 	}
 
 	.reservation-town {
 		grid-column: 1 / -1;
 		font-weight: 800;
-		color: #f8fafc !important;
+		color: #0f172a;
 		overflow-wrap: anywhere;
 	}
 
@@ -1206,24 +1205,6 @@ html, body {
 	box-shadow: 0 6px 14px rgba(2, 6, 23, 0.24) !important;
 }
 
-.theme-dark.app--inner .general-quote option,
-.theme-dark.app--inner .admin-panel option,
-.theme-dark.app--inner .express-quote option,
-.theme-dark.app--inner .quote-engine option {
-	background: #fff !important;
-	color: #0f172a !important;
-}
-
-.theme-dark.app--inner .general-quote .reservation-entry-row {
-	background: rgba(15, 23, 42, 0.88) !important;
-	border: 1px solid rgba(148, 163, 184, 0.42) !important;
-	box-shadow: 0 8px 18px rgba(2, 6, 23, 0.26) !important;
-}
-
-.theme-dark.app--inner .general-quote .reservation-entry-row .reservation-town {
-	color: #f8fafc !important;
-}
-
 .theme-dark.app--inner .general-quote table,
 .theme-dark.app--inner .express-quote table {
 	background: rgba(15,23,42,0.82) !important;
@@ -1327,6 +1308,40 @@ html, body {
 	background: #ffffff;
 	color: #0f172a;
 	border: 1px solid rgba(203,213,225,0.95);
+}
+
+.id-field {
+	display: grid;
+	gap: 0.35rem;
+	min-width: min(100%, 260px);
+}
+
+.id-field > input {
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.id-suggestion {
+	display: flex;
+	align-items: center;
+	gap: 0.35rem;
+	flex-wrap: wrap;
+	font-size: 0.78rem;
+	color: #64748b;
+}
+
+.id-suggestion button {
+	padding: 0.25rem 0.55rem !important;
+	font-size: 0.78rem;
+}
+
+.id-warning {
+	color: #b42318;
+	font-weight: 800;
+}
+
+.theme-dark .id-suggestion {
+	color: #cbd5e1;
 }
 
 button:disabled,

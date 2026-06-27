@@ -46,9 +46,9 @@ function emptyEmpresaForm() {
 function emptyVehiculoForm() {
   return {
     ID_Vehiculo: '',
-    Capacidad_Asientos: 4,
-    Capacidad_Excedente: 0,
-    Unidades_Disponibles: 1,
+    Capacidad_Asientos: '',
+    Capacidad_Excedente: '',
+    Unidades_Disponibles: '',
     Tipo_Vehiculo: '',
     Modelo_Transporte: '',
     Nivel_Confort: 'Estandar',
@@ -61,13 +61,14 @@ function emptyVehiculoForm() {
 function emptyRutaForm() {
   return {
     ID_Ruta: '',
+    ID_Vehiculo: '',
     Origen_Pueblo: '',
     Destino_Final: '',
     Modalidad_Cobro: 'Viaje Cerrado',
-    Precio_Base: 0,
-    Precio_Por_Pasajero: 0,
+    Precio_Base: '',
+    Precio_Por_Pasajero: '',
     Excedente_Cobra: false,
-    Recargo_Excedente: 0
+    Recargo_Excedente: ''
   }
 }
 
@@ -88,6 +89,65 @@ function dataCountsText(dataset) {
 function confirmTypedAction(message, expectedWord) {
   const typed = window.prompt(`${message}\n\nEscribi ${expectedWord} para confirmar.`)
   return typed === expectedWord
+}
+
+function numberInputValue(value) {
+  if (value === '' || value === null || value === undefined) return ''
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric) || numeric === 0) return ''
+  return value
+}
+
+function splitIdPattern(value) {
+  const text = String(value || '').trim()
+  const match = text.match(/^(.*?)(\d+)$/)
+  if (!match) return { id: text, prefix: text, number: null, width: 3 }
+  return {
+    id: text,
+    prefix: match[1],
+    number: Number(match[2]),
+    width: match[2].length
+  }
+}
+
+function buildIdSuggestion(existingIds, currentText, fallbackPrefix) {
+  const ids = (Array.isArray(existingIds) ? existingIds : []).map(value => String(value || '').trim()).filter(Boolean)
+  const current = String(currentText || '').trim()
+  const currentPattern = splitIdPattern(current)
+  const parsed = ids.map(splitIdPattern).filter(item => Number.isFinite(item.number))
+  const fallbackPattern = parsed.reduce((best, item) => {
+    if (!best) return item
+    return Number(item.number || 0) > Number(best.number || 0) ? item : best
+  }, null)
+  const targetPrefix = current
+    ? (Number.isFinite(currentPattern.number) ? currentPattern.prefix : current)
+    : (fallbackPattern?.prefix || fallbackPrefix)
+  const candidates = parsed.filter(item => item.prefix === targetPrefix)
+  const latest = candidates.reduce((best, item) => {
+    if (!best) return item
+    return Number(item.number || 0) > Number(best.number || 0) ? item : best
+  }, null) || fallbackPattern
+  const nextNumber = Number(latest?.number || 0) + 1
+  const width = Math.max(Number(latest?.width || 0), Number(currentPattern.width || 0), 3)
+  const prefix = targetPrefix || fallbackPrefix
+
+  return {
+    latestId: latest?.id || ids[ids.length - 1] || 'Sin datos',
+    suggestedId: `${prefix}${String(nextNumber).padStart(width, '0')}`,
+    duplicate: Boolean(current && ids.includes(current))
+  }
+}
+
+function IdSuggestion({ info, onUse }) {
+  if (!info) return null
+  return (
+    <div className="id-suggestion">
+      <span>Ultimo ID: <strong>{info.latestId}</strong></span>
+      <span>Siguiente sugerido: <strong>{info.suggestedId}</strong></span>
+      <button type="button" onClick={onUse}>Usar</button>
+      {info.duplicate && <span className="id-warning">Ese ID ya existe.</span>}
+    </div>
+  )
 }
 
 export default function AdminPanel() {
@@ -156,6 +216,19 @@ export default function AdminPanel() {
   const townOptions = React.useMemo(
     () => mergeTownOptions(data.rutas.flatMap(r => [r.Origen_Pueblo, r.Destino_Final])),
     [data.rutas]
+  )
+
+  const empresaIdInfo = React.useMemo(
+    () => buildIdSuggestion(data.empresas.map(item => item.ID_Empresa), empresaForm.ID_Empresa, 'EMP-'),
+    [data.empresas, empresaForm.ID_Empresa]
+  )
+  const vehiculoIdInfo = React.useMemo(
+    () => buildIdSuggestion(data.vehiculos.map(item => item.ID_Vehiculo), vehiculoForm.ID_Vehiculo, 'VEH-'),
+    [data.vehiculos, vehiculoForm.ID_Vehiculo]
+  )
+  const rutaIdInfo = React.useMemo(
+    () => buildIdSuggestion(data.rutas.map(item => item.ID_Ruta), rutaForm.ID_Ruta, 'RUTA-'),
+    [data.rutas, rutaForm.ID_Ruta]
   )
 
   React.useEffect(() => {
@@ -234,7 +307,7 @@ export default function AdminPanel() {
       return
     }
     if (data.empresas.some(emp => emp.ID_Empresa === ID_Empresa)) {
-      alert('ID_Empresa ya existe')
+      alert(`ID_Empresa ya existe. Sugerido: ${empresaIdInfo.suggestedId}`)
       return
     }
 
@@ -328,7 +401,7 @@ export default function AdminPanel() {
       return
     }
     if (data.vehiculos.some(v => v.ID_Vehiculo === ID_Vehiculo)) {
-      alert('ID_Vehiculo ya existe')
+      alert(`ID_Vehiculo ya existe. Sugerido: ${vehiculoIdInfo.suggestedId}`)
       return
     }
 
@@ -365,9 +438,9 @@ export default function AdminPanel() {
     setEditingVehiculoId(id)
     setEditingVehiculoForm({
       ID_Vehiculo: v.ID_Vehiculo,
-      Capacidad_Asientos: v.Capacidad_Asientos || 4,
-      Capacidad_Excedente: v.Capacidad_Excedente || 0,
-      Unidades_Disponibles: v.Unidades_Disponibles || 1,
+      Capacidad_Asientos: numberInputValue(v.Capacidad_Asientos),
+      Capacidad_Excedente: numberInputValue(v.Capacidad_Excedente),
+      Unidades_Disponibles: numberInputValue(v.Unidades_Disponibles),
       Tipo_Vehiculo: v.Tipo_Vehiculo || '',
       Modelo_Transporte: v.Modelo_Transporte || '',
       Nivel_Confort: v.Nivel_Confort || 'Estandar',
@@ -407,12 +480,8 @@ export default function AdminPanel() {
     }
     const hasPhoneWarning = !isOptionalPhoneLikelyValid(editingVehiculoForm.Celular_Chofer)
     persist(next)
-    setEditingVehiculoForm(prev => ({
-      ...prev,
-      Capacidad_Asientos: Number(prev.Capacidad_Asientos || 0),
-      Capacidad_Excedente: Number(prev.Capacidad_Excedente || 0),
-      Unidades_Disponibles: Number(prev.Unidades_Disponibles || 1)
-    }))
+    setEditingVehiculoId('')
+    setEditingVehiculoForm(emptyVehiculoForm())
     if (hasPhoneWarning) {
       alert('Vehiculo actualizado. Aviso: el celular del chofer parece incompleto o con formato invalido.')
     } else {
@@ -438,13 +507,13 @@ export default function AdminPanel() {
       return
     }
 
-    const { ID_Ruta, Origen_Pueblo, Destino_Final, Modalidad_Cobro, Precio_Base, Precio_Por_Pasajero, Excedente_Cobra, Recargo_Excedente } = rutaForm
+    const { ID_Ruta, ID_Vehiculo, Origen_Pueblo, Destino_Final, Modalidad_Cobro, Precio_Base, Precio_Por_Pasajero, Excedente_Cobra, Recargo_Excedente } = rutaForm
     if (!ID_Ruta || !Origen_Pueblo || !Destino_Final || !Precio_Por_Pasajero) {
       alert('Completa todos los campos obligatorios: ID, origen, destino y precio por pasajero')
       return
     }
     if (data.rutas.some(r => r.ID_Ruta === ID_Ruta)) {
-      alert('ID_Ruta ya existe')
+      alert(`ID_Ruta ya existe. Sugerido: ${rutaIdInfo.suggestedId}`)
       return
     }
 
@@ -455,6 +524,7 @@ export default function AdminPanel() {
         {
           ID_Ruta,
           ID_Empresa: selectedEmpresaId,
+          ID_Vehiculo,
           Origen_Pueblo: normalizePuebloName(Origen_Pueblo),
           Destino_Final: normalizePuebloName(Destino_Final),
           Modalidad_Cobro,
@@ -475,13 +545,14 @@ export default function AdminPanel() {
     setEditingRutaId(id)
     setEditingRutaForm({
       ID_Ruta: r.ID_Ruta,
+      ID_Vehiculo: r.ID_Vehiculo || '',
       Origen_Pueblo: r.Origen_Pueblo || '',
       Destino_Final: r.Destino_Final || '',
       Modalidad_Cobro: r.Modalidad_Cobro || 'Viaje Cerrado',
-      Precio_Base: r.Precio_Base || 0,
-      Precio_Por_Pasajero: r.Precio_Por_Pasajero || 0,
+      Precio_Base: numberInputValue(r.Precio_Base),
+      Precio_Por_Pasajero: numberInputValue(r.Precio_Por_Pasajero),
       Excedente_Cobra: Boolean(r.Excedente_Cobra),
-      Recargo_Excedente: r.Recargo_Excedente || 0
+      Recargo_Excedente: numberInputValue(r.Recargo_Excedente)
     })
   }
 
@@ -501,6 +572,7 @@ export default function AdminPanel() {
           ? {
               ...r,
               ID_Empresa: selectedEmpresaId,
+              ID_Vehiculo: editingRutaForm.ID_Vehiculo || '',
               Origen_Pueblo: normalizePuebloName(editingRutaForm.Origen_Pueblo),
               Destino_Final: normalizePuebloName(editingRutaForm.Destino_Final),
               Modalidad_Cobro: editingRutaForm.Modalidad_Cobro,
@@ -513,12 +585,8 @@ export default function AdminPanel() {
       )
     }
     persist(next)
-    setEditingRutaForm(prev => ({
-      ...prev,
-      Precio_Base: Number(prev.Precio_Base || 0),
-      Precio_Por_Pasajero: Number(prev.Precio_Por_Pasajero || 0),
-      Recargo_Excedente: Number(prev.Recargo_Excedente || 0)
-    }))
+    setEditingRutaId('')
+    setEditingRutaForm(emptyRutaForm())
     alert('Ruta actualizada')
   }
 
@@ -575,7 +643,10 @@ export default function AdminPanel() {
       <section style={{ marginTop: '.75rem', border: '1px solid #ddd', borderRadius: 8, padding: 10 }}>
         <h3>Nueva empresa</h3>
         <form onSubmit={addEmpresa} style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <input placeholder="ID_Empresa" value={empresaForm.ID_Empresa} onChange={e => setEmpresaForm({ ...empresaForm, ID_Empresa: e.target.value })} />
+          <div className="id-field">
+            <input placeholder="ID_Empresa" value={empresaForm.ID_Empresa} onChange={e => setEmpresaForm({ ...empresaForm, ID_Empresa: e.target.value })} />
+            <IdSuggestion info={empresaIdInfo} onUse={() => setEmpresaForm({ ...empresaForm, ID_Empresa: empresaIdInfo.suggestedId })} />
+          </div>
           <input placeholder="Nombre_Empresa" value={empresaForm.Nombre_Empresa} onChange={e => setEmpresaForm({ ...empresaForm, Nombre_Empresa: e.target.value })} />
           <input placeholder="Nombre de contacto" value={empresaForm.Contacto_Directo} onChange={e => setEmpresaForm({ ...empresaForm, Contacto_Directo: e.target.value })} />
           <input placeholder="Celular de contacto" value={empresaForm.Celular_Contacto} onChange={e => setEmpresaForm({ ...empresaForm, Celular_Contacto: e.target.value })} />
@@ -615,10 +686,13 @@ export default function AdminPanel() {
             <section style={{ marginTop: '.75rem' }}>
               <h4>Vehículos y choferes</h4>
               <form onSubmit={addVehiculo} style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                <input placeholder="ID_Vehiculo" value={vehiculoForm.ID_Vehiculo} onChange={e => setVehiculoForm({ ...vehiculoForm, ID_Vehiculo: e.target.value })} />
-                <input type="number" min="1" placeholder="Asientos" value={vehiculoForm.Capacidad_Asientos} onChange={e => setVehiculoForm({ ...vehiculoForm, Capacidad_Asientos: e.target.value })} />
-                <input type="number" min="0" placeholder="Excedente" value={vehiculoForm.Capacidad_Excedente} onChange={e => setVehiculoForm({ ...vehiculoForm, Capacidad_Excedente: e.target.value })} />
-                <input type="number" min="1" placeholder="Unidades" value={vehiculoForm.Unidades_Disponibles} onChange={e => setVehiculoForm({ ...vehiculoForm, Unidades_Disponibles: e.target.value })} />
+                <div className="id-field">
+                  <input placeholder="ID_Vehiculo" value={vehiculoForm.ID_Vehiculo} onChange={e => setVehiculoForm({ ...vehiculoForm, ID_Vehiculo: e.target.value })} />
+                  <IdSuggestion info={vehiculoIdInfo} onUse={() => setVehiculoForm({ ...vehiculoForm, ID_Vehiculo: vehiculoIdInfo.suggestedId })} />
+                </div>
+                <input type="number" min="1" placeholder="Asientos" value={numberInputValue(vehiculoForm.Capacidad_Asientos)} onChange={e => setVehiculoForm({ ...vehiculoForm, Capacidad_Asientos: e.target.value })} />
+                <input type="number" min="0" placeholder="Excedente" value={numberInputValue(vehiculoForm.Capacidad_Excedente)} onChange={e => setVehiculoForm({ ...vehiculoForm, Capacidad_Excedente: e.target.value })} />
+                <input type="number" min="1" placeholder="Unidades" value={numberInputValue(vehiculoForm.Unidades_Disponibles)} onChange={e => setVehiculoForm({ ...vehiculoForm, Unidades_Disponibles: e.target.value })} />
                 <input placeholder="Tipo_Vehiculo" value={vehiculoForm.Tipo_Vehiculo} onChange={e => setVehiculoForm({ ...vehiculoForm, Tipo_Vehiculo: e.target.value })} />
                 <input placeholder="Modelo_Transporte" value={vehiculoForm.Modelo_Transporte} onChange={e => setVehiculoForm({ ...vehiculoForm, Modelo_Transporte: e.target.value })} />
                 <select value={vehiculoForm.Nivel_Confort} onChange={e => setVehiculoForm({ ...vehiculoForm, Nivel_Confort: e.target.value })}>
@@ -650,20 +724,31 @@ export default function AdminPanel() {
             <section style={{ marginTop: '.75rem' }}>
               <h4>Rutas y precios</h4>
               <form onSubmit={addRuta} style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                <input placeholder="ID_Ruta" value={rutaForm.ID_Ruta} onChange={e => setRutaForm({ ...rutaForm, ID_Ruta: e.target.value })} />
+                <div className="id-field">
+                  <input placeholder="ID_Ruta" value={rutaForm.ID_Ruta} onChange={e => setRutaForm({ ...rutaForm, ID_Ruta: e.target.value })} />
+                  <IdSuggestion info={rutaIdInfo} onUse={() => setRutaForm({ ...rutaForm, ID_Ruta: rutaIdInfo.suggestedId })} />
+                </div>
+                <select value={rutaForm.ID_Vehiculo} onChange={e => setRutaForm({ ...rutaForm, ID_Vehiculo: e.target.value })}>
+                  <option value="">Ruta general de empresa</option>
+                  {vehiculosEmpresa.map(vehiculo => (
+                    <option key={vehiculo.ID_Vehiculo} value={vehiculo.ID_Vehiculo}>
+                      {vehiculo.ID_Vehiculo} - {vehiculo.Tipo_Vehiculo}
+                    </option>
+                  ))}
+                </select>
                 <input list="town-options" placeholder="Origen_Pueblo" value={rutaForm.Origen_Pueblo} onChange={e => setRutaForm({ ...rutaForm, Origen_Pueblo: e.target.value })} />
                 <input list="town-options" placeholder="Destino_Final" value={rutaForm.Destino_Final} onChange={e => setRutaForm({ ...rutaForm, Destino_Final: e.target.value })} />
-                <input type="number" placeholder="Precio por Pasajero ($)" value={rutaForm.Precio_Por_Pasajero} onChange={e => setRutaForm({ ...rutaForm, Precio_Por_Pasajero: e.target.value })} style={{ fontWeight: 'bold' }} />
+                <input type="number" placeholder="Precio por Pasajero ($)" value={numberInputValue(rutaForm.Precio_Por_Pasajero)} onChange={e => setRutaForm({ ...rutaForm, Precio_Por_Pasajero: e.target.value })} style={{ fontWeight: 'bold' }} />
                 <select value={rutaForm.Modalidad_Cobro} onChange={e => setRutaForm({ ...rutaForm, Modalidad_Cobro: e.target.value })}>
                   <option>Viaje Cerrado</option>
                   <option>Por Pasajero</option>
                 </select>
-                <input type="number" placeholder="Precio_Base" value={rutaForm.Precio_Base} onChange={e => setRutaForm({ ...rutaForm, Precio_Base: e.target.value })} />
+                <input type="number" placeholder="Precio_Base" value={numberInputValue(rutaForm.Precio_Base)} onChange={e => setRutaForm({ ...rutaForm, Precio_Base: e.target.value })} />
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <input type="checkbox" checked={rutaForm.Excedente_Cobra} onChange={e => setRutaForm({ ...rutaForm, Excedente_Cobra: e.target.checked })} />
                   Cobrar excedente
                 </label>
-                <input type="number" placeholder="Recargo_Excedente" value={rutaForm.Recargo_Excedente} onChange={e => setRutaForm({ ...rutaForm, Recargo_Excedente: e.target.value })} />
+                <input type="number" placeholder="Recargo_Excedente" value={numberInputValue(rutaForm.Recargo_Excedente)} onChange={e => setRutaForm({ ...rutaForm, Recargo_Excedente: e.target.value })} />
                 <button type="submit">Agregar ruta</button>
               </form>
 
@@ -689,9 +774,9 @@ export default function AdminPanel() {
         <div className="modal">
           <form onSubmit={saveEditVehiculo} className="modal-content">
             <h3>Editar vehículo {editingVehiculoId}</h3>
-            <input type="number" value={editingVehiculoForm.Capacidad_Asientos} onChange={e => setEditingVehiculoForm({ ...editingVehiculoForm, Capacidad_Asientos: e.target.value })} placeholder="Capacidad_Asientos" />
-            <input type="number" value={editingVehiculoForm.Capacidad_Excedente} onChange={e => setEditingVehiculoForm({ ...editingVehiculoForm, Capacidad_Excedente: e.target.value })} placeholder="Capacidad_Excedente" />
-            <input type="number" value={editingVehiculoForm.Unidades_Disponibles} onChange={e => setEditingVehiculoForm({ ...editingVehiculoForm, Unidades_Disponibles: e.target.value })} placeholder="Unidades_Disponibles" />
+            <input type="number" value={numberInputValue(editingVehiculoForm.Capacidad_Asientos)} onChange={e => setEditingVehiculoForm({ ...editingVehiculoForm, Capacidad_Asientos: e.target.value })} placeholder="Capacidad_Asientos" />
+            <input type="number" value={numberInputValue(editingVehiculoForm.Capacidad_Excedente)} onChange={e => setEditingVehiculoForm({ ...editingVehiculoForm, Capacidad_Excedente: e.target.value })} placeholder="Capacidad_Excedente" />
+            <input type="number" value={numberInputValue(editingVehiculoForm.Unidades_Disponibles)} onChange={e => setEditingVehiculoForm({ ...editingVehiculoForm, Unidades_Disponibles: e.target.value })} placeholder="Unidades_Disponibles" />
             <input value={editingVehiculoForm.Tipo_Vehiculo} onChange={e => setEditingVehiculoForm({ ...editingVehiculoForm, Tipo_Vehiculo: e.target.value })} placeholder="Tipo_Vehiculo" />
             <input value={editingVehiculoForm.Modelo_Transporte} onChange={e => setEditingVehiculoForm({ ...editingVehiculoForm, Modelo_Transporte: e.target.value })} placeholder="Modelo_Transporte" />
             <select value={editingVehiculoForm.Nivel_Confort} onChange={e => setEditingVehiculoForm({ ...editingVehiculoForm, Nivel_Confort: e.target.value })}>
@@ -716,26 +801,26 @@ export default function AdminPanel() {
           <form onSubmit={saveEditRuta} className="modal-content">
             <h3>Editar ruta {editingRutaId}</h3>
             <select value={editingRutaForm.ID_Vehiculo} onChange={e => setEditingRutaForm({ ...editingRutaForm, ID_Vehiculo: e.target.value })}>
-              <option value="">Seleccionar vehiculo</option>
-              {vehiculosEmpresa.map(v => (
-                <option key={v.ID_Vehiculo} value={v.ID_Vehiculo}>
-                  {v.ID_Vehiculo} - {v.Tipo_Vehiculo}
+              <option value="">Ruta general de empresa</option>
+              {vehiculosEmpresa.map(vehiculo => (
+                <option key={vehiculo.ID_Vehiculo} value={vehiculo.ID_Vehiculo}>
+                  {vehiculo.ID_Vehiculo} - {vehiculo.Tipo_Vehiculo}
                 </option>
               ))}
             </select>
             <input list="town-options" value={editingRutaForm.Origen_Pueblo} onChange={e => setEditingRutaForm({ ...editingRutaForm, Origen_Pueblo: e.target.value })} placeholder="Origen_Pueblo" />
             <input list="town-options" value={editingRutaForm.Destino_Final} onChange={e => setEditingRutaForm({ ...editingRutaForm, Destino_Final: e.target.value })} placeholder="Destino_Final" />
-            <input type="number" value={editingRutaForm.Precio_Por_Pasajero} onChange={e => setEditingRutaForm({ ...editingRutaForm, Precio_Por_Pasajero: e.target.value })} placeholder="Precio por Pasajero ($)" style={{ fontWeight: 'bold' }} />
+            <input type="number" value={numberInputValue(editingRutaForm.Precio_Por_Pasajero)} onChange={e => setEditingRutaForm({ ...editingRutaForm, Precio_Por_Pasajero: e.target.value })} placeholder="Precio por Pasajero ($)" style={{ fontWeight: 'bold' }} />
             <select value={editingRutaForm.Modalidad_Cobro} onChange={e => setEditingRutaForm({ ...editingRutaForm, Modalidad_Cobro: e.target.value })}>
               <option>Viaje Cerrado</option>
               <option>Por Pasajero</option>
             </select>
-            <input type="number" value={editingRutaForm.Precio_Base} onChange={e => setEditingRutaForm({ ...editingRutaForm, Precio_Base: e.target.value })} placeholder="Precio_Base" />
+            <input type="number" value={numberInputValue(editingRutaForm.Precio_Base)} onChange={e => setEditingRutaForm({ ...editingRutaForm, Precio_Base: e.target.value })} placeholder="Precio_Base" />
             <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <input type="checkbox" checked={editingRutaForm.Excedente_Cobra} onChange={e => setEditingRutaForm({ ...editingRutaForm, Excedente_Cobra: e.target.checked })} />
               Cobrar excedente
             </label>
-            <input type="number" value={editingRutaForm.Recargo_Excedente} onChange={e => setEditingRutaForm({ ...editingRutaForm, Recargo_Excedente: e.target.value })} placeholder="Recargo_Excedente" />
+            <input type="number" value={numberInputValue(editingRutaForm.Recargo_Excedente)} onChange={e => setEditingRutaForm({ ...editingRutaForm, Recargo_Excedente: e.target.value })} placeholder="Recargo_Excedente" />
             <div style={{ display: 'flex', gap: 8 }}>
               <button type="submit">Guardar</button>
               <button type="button" onClick={() => setEditingRutaId('')}>Cancelar</button>
