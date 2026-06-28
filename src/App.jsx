@@ -8,6 +8,7 @@ import LoginPanel from './LoginPanel'
 import UserManagementPanel from './UserManagementPanel'
 import {
   checkFirebaseConnection,
+  hasAnyUserProfiles,
   ROLE_ADMIN,
   ROLE_OWNER,
   ensureBootstrapOwner,
@@ -68,9 +69,12 @@ export default function App() {
     status: 'checking',
     message: 'Comprobando conexión...'
   })
+  const [canCreateFirstOwner, setCanCreateFirstOwner] = React.useState(false)
+  const [adminSegment, setAdminSegment] = React.useState('operations')
   const authBusy = Boolean(authAction)
 
   const canAccessAdmin = [ROLE_OWNER, ROLE_ADMIN].includes(String(currentProfile?.role || '').toLowerCase())
+  const isOwner = String(currentProfile?.role || '').toLowerCase() === ROLE_OWNER
 
   function isLikelyEmail(value) {
     const text = String(value || '').trim()
@@ -115,6 +119,10 @@ export default function App() {
           setAuthError('Firebase Authentication no esta configurado.')
           return
         }
+
+        const hasUsers = await hasAnyUserProfiles()
+        if (!mounted) return
+        setCanCreateFirstOwner(!hasUsers)
 
         unsubscribe = await subscribeAuthState(async firebaseUser => {
           if (!mounted) return
@@ -385,6 +393,7 @@ export default function App() {
             errorText={authError}
             authUnavailable={!authConfigured}
             firebaseConnection={firebaseConnection}
+            canCreateFirstOwner={canCreateFirstOwner}
           />
         )}
 
@@ -517,8 +526,27 @@ export default function App() {
             <p>Gestión de datos, rutas y vehículos con una interfaz más estable y clara.</p>
             {canAccessAdmin ? (
               <>
-                <UserManagementPanel actorProfile={currentProfile} />
-                <AdminPanel />
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => setAdminSegment('operations')}
+                    style={{ opacity: adminSegment === 'operations' ? 1 : 0.75 }}
+                  >
+                    Configuración de rutas y transporte
+                  </button>
+                  {isOwner && (
+                    <button
+                      type="button"
+                      onClick={() => setAdminSegment('access')}
+                      style={{ opacity: adminSegment === 'access' ? 1 : 0.75 }}
+                    >
+                      Accesos y usuarios
+                    </button>
+                  )}
+                </div>
+
+                {adminSegment === 'operations' && <AdminPanel />}
+                {adminSegment === 'access' && isOwner && <UserManagementPanel actorProfile={currentProfile} />}
               </>
             ) : (
               <p>No tienes permisos para ingresar al panel de administración.</p>

@@ -1,6 +1,6 @@
 import React from 'react'
 
-export default function LoginPanel({ onLogin, onCreateFirstOwner, loading, loadingAction, errorText, authUnavailable, firebaseConnection }) {
+export default function LoginPanel({ onLogin, onCreateFirstOwner, loading, loadingAction, errorText, authUnavailable, firebaseConnection, canCreateFirstOwner }) {
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
 
@@ -60,14 +60,18 @@ export default function LoginPanel({ onLogin, onCreateFirstOwner, loading, loadi
         <button type="submit" disabled={loading || authUnavailable}>
           {loadingAction === 'login' ? 'Ingresando...' : 'Ingresar'}
         </button>
-        <button type="button" onClick={createFirstOwner} disabled={loading || authUnavailable}>
-          {loadingAction === 'create' ? 'Procesando...' : 'Crear primer propietario'}
-        </button>
+        {canCreateFirstOwner && (
+          <button type="button" onClick={createFirstOwner} disabled={loading || authUnavailable}>
+            {loadingAction === 'create' ? 'Procesando...' : 'Crear primer propietario'}
+          </button>
+        )}
       </form>
 
-      <p style={{ marginTop: 10, opacity: 0.85 }}>
-        Si eres propietario y aún no tienes usuario, crea el primer usuario desde Firebase Authentication y al primer ingreso quedará como owner automáticamente.
-      </p>
+      {canCreateFirstOwner && (
+        <p style={{ marginTop: 10, opacity: 0.85 }}>
+          Si eres propietario y aún no tienes usuario, crea el primer usuario desde Firebase Authentication y al primer ingreso quedará como owner automáticamente.
+        </p>
+      )}
     </section>
   )
 }

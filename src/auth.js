@@ -154,6 +154,20 @@ export async function listUserProfiles() {
     })
 }
 
+export async function hasAnyUserProfiles() {
+  try {
+    const { db } = await getFirebaseCore()
+    const { ref, get } = await import('firebase/database')
+    const snapshot = await get(ref(db, '/snt_users'))
+    if (!snapshot.exists()) return false
+    const raw = snapshot.val() || {}
+    return Object.keys(raw).length > 0
+  } catch (e) {
+    // Ante cualquier duda de permisos/red, ocultamos el alta inicial para no exponerla.
+    return true
+  }
+}
+
 export async function ensureBootstrapOwner(user) {
   if (!user?.uid) return null
   const { db } = await getFirebaseCore()
@@ -188,23 +202,17 @@ export async function ensureBootstrapOwner(user) {
 
 function canManageUsers(profile) {
   const role = String(profile?.role || '').toLowerCase()
-  return role === ROLE_OWNER || role === ROLE_ADMIN
+  return role === ROLE_OWNER
 }
 
 function canAssignRole(actorRole, targetRole) {
   if (actorRole === ROLE_OWNER) return ROLE_OPTIONS.includes(targetRole)
-  if (actorRole === ROLE_ADMIN) return targetRole === ROLE_OPERADOR || targetRole === ROLE_LECTURA
   return false
 }
 
 function canModifyTarget(actor, target) {
   const actorRole = String(actor?.role || '').toLowerCase()
-  const targetRole = String(target?.role || '').toLowerCase()
-
   if (actorRole === ROLE_OWNER) return true
-  if (actorRole === ROLE_ADMIN) {
-    return targetRole === ROLE_OPERADOR || targetRole === ROLE_LECTURA
-  }
   return false
 }
 
