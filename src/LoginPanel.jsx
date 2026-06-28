@@ -48,6 +48,11 @@ export default function LoginPanel({ onLogin, onCreateFirstOwner, loading, loadi
           placeholder="Nombre de usuario"
           value={username}
           onChange={event => setUsername(event.target.value)}
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          inputMode="text"
+          enterKeyHint="next"
           required
         />
         <input
@@ -55,6 +60,7 @@ export default function LoginPanel({ onLogin, onCreateFirstOwner, loading, loadi
           placeholder="Contraseña"
           value={password}
           onChange={event => setPassword(event.target.value)}
+          enterKeyHint="go"
           required
         />
         <button type="submit" disabled={loading || authUnavailable}>

@@ -5,7 +5,8 @@
 	padding: 1rem;
 	box-sizing: border-box;
 	position: relative;
-	overflow: hidden;
+	overflow-x: hidden;
+	overflow-y: auto;
 	min-height: 100vh;
 	background: linear-gradient(180deg, #f7f8fb 0%, #edf1f8 100%);
 }
@@ -847,6 +848,9 @@ html, body {
 		max-width: none;
 		padding: 0.55rem;
 		overflow-x: hidden;
+		overflow-y: auto;
+		min-height: 100dvh;
+		-webkit-overflow-scrolling: touch;
 	}
 
 	.app-main {

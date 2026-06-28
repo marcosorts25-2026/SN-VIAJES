@@ -153,13 +153,14 @@ async function resolveProfileForUsername(username) {
 }
 
 export async function signInWithUsername(username, password) {
-  const profile = await resolveProfileForUsername(username)
-  if (!profile?.authEmail) {
-    const error = new Error('Usuario no encontrado')
-    error.code = 'auth/user-not-found'
+  const normalized = normalizeUsername(username)
+  if (!isValidUsername(normalized)) {
+    const error = new Error('Usuario no válido')
+    error.code = 'auth/invalid-credential'
     throw error
   }
-  return signInWithEmail(profile.authEmail, password)
+  // No consultamos DB antes de autenticar: /snt_users requiere auth y bloquearía el login.
+  return signInWithEmail(usernameToAuthEmail(normalized), password)
 }
 
 export async function signUpWithUsername(username, password) {
