@@ -6,6 +6,7 @@ import {
   ROLE_OPTIONS,
   listUserProfiles,
   createUserByManager,
+  deleteUserProfileByManager,
   updateUserProfileByManager
 } from './auth'
 
@@ -40,6 +41,7 @@ export default function UserManagementPanel({ actorProfile }) {
   })
 
   const actorRole = String(actorProfile?.role || '').toLowerCase()
+  const isOwnerActor = actorRole === 'owner'
   const allowedRoles = allowedRolesForActor(actorRole)
 
   async function refreshUsers() {
@@ -89,6 +91,22 @@ export default function UserManagementPanel({ actorProfile }) {
     }
   }
 
+  async function deleteUser(targetUid) {
+    if (!window.confirm('¿Eliminar este usuario? Perdera el acceso a la app inmediatamente.')) return
+    setBusyUid(targetUid)
+    setMessage('')
+    setErrorText('')
+    try {
+      await deleteUserProfileByManager(actorProfile, targetUid)
+      setMessage('Usuario eliminado del sistema')
+      await refreshUsers()
+    } catch (error) {
+      setErrorText(error?.message || 'No se pudo eliminar el usuario')
+    } finally {
+      setBusyUid('')
+    }
+  }
+
   return (
     <section style={{ marginTop: '.75rem', border: '1px solid #ddd', borderRadius: 8, padding: 10 }}>
       <h3>Usuarios y roles</h3>
@@ -126,7 +144,7 @@ export default function UserManagementPanel({ actorProfile }) {
               {users.map(user => {
                 const isSelf = user.uid === actorProfile?.uid
                 const roleEditable = allowedRoles.includes(user.role)
-                const canEdit = !isSelf && roleEditable
+                const canEdit = !isSelf && (isOwnerActor || roleEditable)
                 return (
                   <tr key={user.uid}>
                     <td style={{ borderBottom: '1px solid #eee', padding: 6 }}>{user.name || '-'}</td>
@@ -147,13 +165,22 @@ export default function UserManagementPanel({ actorProfile }) {
                     </td>
                     <td style={{ borderBottom: '1px solid #eee', padding: 6 }}>
                       {canEdit && (
-                        <button
-                          type="button"
-                          onClick={() => updateUser(user.uid, { active: !user.active })}
-                          disabled={busyUid === user.uid}
-                        >
-                          {user.active ? 'Dar de baja' : 'Reactivar'}
-                        </button>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          <button
+                            type="button"
+                            onClick={() => updateUser(user.uid, { active: !user.active })}
+                            disabled={busyUid === user.uid}
+                          >
+                            {user.active ? 'Dar de baja' : 'Reactivar'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deleteUser(user.uid)}
+                            disabled={busyUid === user.uid}
+                          >
+                            Eliminar
+                          </button>
+                        </div>
                       )}
                       {!canEdit && <span>{isSelf ? 'Sesión actual' : 'Sin permiso'}</span>}
                     </td>

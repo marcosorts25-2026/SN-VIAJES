@@ -177,7 +177,8 @@ export async function signOutCurrentUser() {
 }
 
 function normalizeProfile(uid, raw) {
-  const role = ROLE_OPTIONS.includes(String(raw?.role || '').toLowerCase()) ? String(raw.role).toLowerCase() : ROLE_LECTURA
+  const normalizedRole = String(raw?.role || '').trim().toLowerCase()
+  const role = ROLE_OPTIONS.includes(normalizedRole) ? normalizedRole : ROLE_LECTURA
   const authEmail = String(raw?.authEmail || raw?.email || '').trim().toLowerCase()
   const username = normalizeUsername(raw?.username) || fallbackUsername(uid, authEmail)
   return {
@@ -278,7 +279,7 @@ export async function ensureBootstrapOwner(user) {
 }
 
 function canManageUsers(profile) {
-  const role = String(profile?.role || '').toLowerCase()
+  const role = String(profile?.role || '').trim().toLowerCase()
   return role === ROLE_OWNER
 }
 
@@ -288,7 +289,7 @@ function canAssignRole(actorRole, targetRole) {
 }
 
 function canModifyTarget(actor, target) {
-  const actorRole = String(actor?.role || '').toLowerCase()
+  const actorRole = String(actor?.role || '').trim().toLowerCase()
   if (actorRole === ROLE_OWNER) return true
   return false
 }
@@ -354,7 +355,7 @@ export async function updateUserProfileByManager(actorProfile, targetUid, update
   if (!current) throw new Error('El usuario no existe')
   if (!canModifyTarget(actorProfile, current)) throw new Error('No tienes permisos para editar este usuario')
 
-  const actorRole = String(actorProfile?.role || '').toLowerCase()
+  const actorRole = String(actorProfile?.role || '').trim().toLowerCase()
   const nextRole = updates?.role ? String(updates.role).toLowerCase() : current.role
   if (!canAssignRole(actorRole, nextRole)) throw new Error('No puedes asignar ese rol')
 
@@ -387,4 +388,20 @@ export async function updateUserProfileByManager(actorProfile, targetUid, update
   })
 
   return next
+}
+
+export async function deleteUserProfileByManager(actorProfile, targetUid) {
+  if (!canManageUsers(actorProfile)) throw new Error('No tienes permisos para eliminar usuarios')
+  if (!targetUid) throw new Error('Usuario destino inválido')
+
+  const current = await getUserProfile(targetUid)
+  if (!current) throw new Error('El usuario no existe')
+  if (!canModifyTarget(actorProfile, current)) throw new Error('No tienes permisos para eliminar este usuario')
+  if (targetUid === actorProfile?.uid) throw new Error('No puedes eliminar tu propia sesión')
+
+  const { db } = await getFirebaseCore()
+  const { ref, remove } = await import('firebase/database')
+  await remove(ref(db, `/snt_users/${targetUid}`))
+
+  return true
 }
