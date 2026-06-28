@@ -202,7 +202,17 @@ export default function App() {
       if (code.includes('configuration-not-found')) {
         setAuthError('Firebase Authentication no esta habilitado para este proyecto. Debes activar Email/Password en Firebase Console > Authentication > Sign-in method.')
       } else if (code.includes('email-already-in-use')) {
-        setAuthError('Ese email ya existe. Ingresa con ese usuario.')
+        try {
+          await signInWithEmail(email, password)
+          // Si funciona, onAuthStateChanged completa el perfil owner o el ingreso normal.
+        } catch (loginError) {
+          const loginCode = String(loginError?.code || '')
+          if (loginCode.includes('invalid-credential') || loginCode.includes('wrong-password')) {
+            setAuthError('Ese email ya existe, pero la contraseña no coincide. Usa Ingresar con la contraseña correcta.')
+          } else {
+            setAuthError('Ese email ya existe. Usa Ingresar con ese usuario.')
+          }
+        }
       } else if (code.includes('weak-password')) {
         setAuthError('La contraseña es muy débil. Usa al menos 6 caracteres.')
       } else {

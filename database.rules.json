@@ -1,0 +1,18 @@
+{
+  "rules": {
+    "snt_users": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && (auth.uid === $uid || root.child('snt_users').child(auth.uid).child('role').val() === 'owner' || root.child('snt_users').child(auth.uid).child('role').val() === 'admin')"
+      }
+    },
+    "snt_data": {
+      ".read": "auth != null",
+      ".write": "auth != null && (root.child('snt_users').child(auth.uid).child('role').val() === 'owner' || root.child('snt_users').child(auth.uid).child('role').val() === 'admin' || root.child('snt_users').child(auth.uid).child('role').val() === 'operador')",
+      "routeSheets": {
+        ".read": "auth != null",
+        ".write": "auth != null && (root.child('snt_users').child(auth.uid).child('role').val() === 'owner' || root.child('snt_users').child(auth.uid).child('role').val() === 'admin' || root.child('snt_users').child(auth.uid).child('role').val() === 'operador')"
+      }
+    }
+  }
+}
