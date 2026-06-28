@@ -13,8 +13,8 @@ function roleLabel(role) {
   switch (String(role || '').toLowerCase()) {
     case 'owner': return 'Propietario'
     case 'admin': return 'Administrador'
-    case 'operador': return 'Operador'
-    default: return 'Solo lectura'
+    case 'operador': return 'Carga pasajeros'
+    default: return 'Solo ver'
   }
 }
 

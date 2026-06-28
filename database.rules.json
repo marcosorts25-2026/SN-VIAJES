@@ -9,7 +9,7 @@
     },
     "snt_data": {
       ".read": "auth != null",
-      ".write": "auth != null && (root.child('snt_users').child(auth.uid).child('role').val() === 'owner' || root.child('snt_users').child(auth.uid).child('role').val() === 'admin' || root.child('snt_users').child(auth.uid).child('role').val() === 'operador')",
+      ".write": "auth != null && (root.child('snt_users').child(auth.uid).child('role').val() === 'owner' || root.child('snt_users').child(auth.uid).child('role').val() === 'admin')",
       "routeSheets": {
         ".read": "auth != null",
         ".write": "auth != null && (root.child('snt_users').child(auth.uid).child('role').val() === 'owner' || root.child('snt_users').child(auth.uid).child('role').val() === 'admin' || root.child('snt_users').child(auth.uid).child('role').val() === 'operador')"

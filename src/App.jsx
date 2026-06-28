@@ -10,7 +10,9 @@ import {
   checkFirebaseConnection,
   hasAnyUserProfiles,
   ROLE_ADMIN,
+  ROLE_LECTURA,
   ROLE_OWNER,
+  ROLE_OPERADOR,
   ensureBootstrapOwner,
   getUserProfile,
   isAuthConfigured,
@@ -73,8 +75,15 @@ export default function App() {
   const [adminSegment, setAdminSegment] = React.useState('operations')
   const authBusy = Boolean(authAction)
 
-  const canAccessAdmin = [ROLE_OWNER, ROLE_ADMIN].includes(String(currentProfile?.role || '').toLowerCase())
-  const isOwner = String(currentProfile?.role || '').toLowerCase() === ROLE_OWNER
+  const currentRole = String(currentProfile?.role || '').toLowerCase()
+
+  const canAccessAdmin = [ROLE_OWNER, ROLE_ADMIN].includes(currentRole)
+  const isOwner = currentRole === ROLE_OWNER
+  const canManageOperationData = [ROLE_OWNER, ROLE_ADMIN].includes(currentRole)
+  const canManagePassengerSheets = [ROLE_OWNER, ROLE_ADMIN, ROLE_OPERADOR].includes(currentRole)
+  const canEditPassengerDemand = [ROLE_OWNER, ROLE_ADMIN, ROLE_OPERADOR].includes(currentRole)
+  const canEditPassengerPricing = [ROLE_OWNER, ROLE_ADMIN].includes(currentRole)
+  const isReadOnlyRole = currentRole === ROLE_LECTURA
 
   function isLikelyEmail(value) {
     const text = String(value || '').trim()
@@ -506,7 +515,12 @@ export default function App() {
             <h2>Reservas por pueblo</h2>
             <div style={{marginTop: '1rem'}}>
               <LazyViewErrorBoundary>
-                <GeneralQuote />
+                <GeneralQuote
+                  canManageSheets={canManagePassengerSheets}
+                  canEditDemand={canEditPassengerDemand}
+                  canEditPricing={canEditPassengerPricing}
+                  readOnly={isReadOnlyRole}
+                />
               </LazyViewErrorBoundary>
             </div>
             <div className="section-rights">{rightsText}</div>
@@ -545,7 +559,7 @@ export default function App() {
                   )}
                 </div>
 
-                {adminSegment === 'operations' && <AdminPanel />}
+                {adminSegment === 'operations' && canManageOperationData && <AdminPanel />}
                 {adminSegment === 'access' && isOwner && <UserManagementPanel actorProfile={currentProfile} />}
               </>
             ) : (

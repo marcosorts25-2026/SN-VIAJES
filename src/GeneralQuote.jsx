@@ -640,7 +640,13 @@ function buildRecommendations(scenarios, pricesByTown = {}) {
   ].filter(Boolean)
 }
 
-export default function GeneralQuote({ initialSheetId = '' } = {}) {
+export default function GeneralQuote({
+  initialSheetId = '',
+  canManageSheets = true,
+  canEditDemand = true,
+  canEditPricing = true,
+  readOnly = false
+} = {}) {
   const [data, setData] = React.useState(() => SAMPLE)
   const [dataReady, setDataReady] = React.useState(false)
   const [sheets, setSheets] = React.useState([])
@@ -655,6 +661,10 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
   const [reboundConfigByUnit, setReboundConfigByUnit] = React.useState({})
   const [reboundHydratedSheetId, setReboundHydratedSheetId] = React.useState('')
   const [reportCompanyId, setReportCompanyId] = React.useState('')
+
+  const allowSheetEdition = Boolean(canManageSheets) && !readOnly
+  const allowDemandEdition = Boolean(canEditDemand) && !readOnly
+  const allowPriceEdition = Boolean(canEditPricing) && !readOnly
 
   React.useEffect(() => {
     let mounted = true
@@ -1198,6 +1208,7 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
   }
 
   function updateReboundSelection(unitId, value) {
+    if (!allowPriceEdition) return
     const nextSelection = {
       ...(reboundSelectionByUnit || {}),
       [unitId]: value
@@ -1210,6 +1221,7 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
   }
 
   function updateReboundConfig(unitId, patch) {
+    if (!allowPriceEdition) return
     const nextConfig = {
       ...(reboundConfigByUnit || {}),
       [unitId]: {
@@ -1225,6 +1237,7 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
   }
 
   function saveActiveSheetDraft() {
+    if (!allowSheetEdition) return
     if (!activeSheet) return
 
     const nextSheets = sheets.map(sheet => {
@@ -1249,6 +1262,7 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
 
   function selectScenarioAndPersist(scenarioId) {
     setSelectedScenarioId(scenarioId)
+    if (!allowSheetEdition) return
     updateActiveSheet(sheet => ({
       ...sheet,
       selectedScenarioId: scenarioId || ''
@@ -1256,6 +1270,7 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
   }
 
   function setActiveField(field, value) {
+    if (!allowSheetEdition) return
     if (field === 'eventDate') {
       updateActiveSheet(sheet => ({ ...sheet, [field]: value }))
       setScenarios([])
@@ -1267,6 +1282,7 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
   }
 
   function setDestination(value) {
+    if (!allowSheetEdition) return
     const validCompanyIds = availableCompanyIdsForDestination(rutas, vehiculos, empresas, value, activeSheet?.eventDate || '')
     updateActiveSheet(sheet => {
       const demandByTown = buildDemandForDestination(sheet, rutas, value)
@@ -1280,6 +1296,7 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
   }
 
   function toggleCompany(companyId) {
+    if (!allowSheetEdition) return
     updateActiveSheet(sheet => {
       const current = Array.isArray(sheet.selectedCompanyIds) ? sheet.selectedCompanyIds : []
       const exists = current.includes(companyId)
@@ -1292,6 +1309,7 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
   }
 
   function selectAllCompanies() {
+    if (!allowSheetEdition) return
     updateActiveSheet(sheet => ({ ...sheet, selectedCompanyIds: allCompaniesForSelection.map(company => company.ID_Empresa) }))
     setScenarios([])
     setSelectedScenarioId('')
@@ -1299,6 +1317,7 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
   }
 
   function clearCompanyFilter() {
+    if (!allowSheetEdition) return
     updateActiveSheet(sheet => ({ ...sheet, selectedCompanyIds: [] }))
     setScenarios([])
     setSelectedScenarioId('')
@@ -1306,6 +1325,7 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
   }
 
   function setDemand(origin, value) {
+    if (!allowDemandEdition) return
     const parsed = Number(value)
     const townKey = normalizeText(origin)
     updateActiveSheet(sheet => ({
@@ -1323,6 +1343,7 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
   }
 
   function setTownPrice(origin, value) {
+    if (!allowPriceEdition) return
     const townKey = normalizeText(origin)
     const parsed = Number(value)
     updateActiveSheet(sheet => ({
@@ -1336,6 +1357,7 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
   }
 
   function addNewSheet() {
+    if (!allowSheetEdition) return
     const base = activeSheet
       ? {
           eventDate: activeSheet.eventDate,
@@ -1358,6 +1380,7 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
   }
 
   function duplicateActiveSheet() {
+    if (!allowSheetEdition) return
     if (!activeSheet) return
     const cloned = createNewSheet(rutas, {
       ...activeSheet,
@@ -1372,6 +1395,7 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
   }
 
   function deleteSheet(id) {
+    if (!allowSheetEdition) return
     if (!window.confirm('Eliminar esta hoja de ruta?')) return
 
     setSheets(prev => {
@@ -1393,6 +1417,7 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
   }
 
   function clearDemand() {
+    if (!allowDemandEdition) return
     if (!activeSheet) return
     const nextDemand = origins.reduce((acc, origin) => {
       acc[origin] = 0
@@ -1484,20 +1509,22 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
         : null
     )
 
-    updateActiveSheet(sheet => ({
-      ...sheet,
-      allowExcedente: true,
-      selectedCompanyIds: rawSelected.filter(companyId => allAvailableCompanyIds.includes(companyId)),
-      selectedScenarioId: selectedScenarioToUseId,
-      lastCalculatedAt: new Date().toISOString(),
-      lastSummary: {
-        assigned: selectedScenarioToUse?.totalAssigned || 0,
-        demand: selectedScenarioToUse?.totalDemand || 0,
-        withoutSeat: selectedScenarioToUse?.totalWithoutSeat || 0,
-        emptySeats: selectedScenarioToUse?.totalEmptySeats || 0,
-        cost: selectedScenarioToUse?.totalCost || 0
-      }
-    }))
+    if (allowSheetEdition) {
+      updateActiveSheet(sheet => ({
+        ...sheet,
+        allowExcedente: true,
+        selectedCompanyIds: rawSelected.filter(companyId => allAvailableCompanyIds.includes(companyId)),
+        selectedScenarioId: selectedScenarioToUseId,
+        lastCalculatedAt: new Date().toISOString(),
+        lastSummary: {
+          assigned: selectedScenarioToUse?.totalAssigned || 0,
+          demand: selectedScenarioToUse?.totalDemand || 0,
+          withoutSeat: selectedScenarioToUse?.totalWithoutSeat || 0,
+          emptySeats: selectedScenarioToUse?.totalEmptySeats || 0,
+          cost: selectedScenarioToUse?.totalCost || 0
+        }
+      }))
+    }
   }
 
   function buildOperationalReportText(companyId = '') {
@@ -1705,8 +1732,14 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
   return (
     <div className="general-quote">
       <h2>Reservas por pueblo por hoja de ruta</h2>
+      {!allowSheetEdition && (
+        <p className="attention-chip">Modo solo lectura: este rol puede ver cálculos pero no guardar cambios.</p>
+      )}
+      {allowSheetEdition && !allowPriceEdition && (
+        <p className="attention-chip">Rol de carga: puedes ingresar pasajeros y calcular, pero no editar precios.</p>
+      )}
       <div className="mobile-action-row" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-        <button type="button" className="secondary" onClick={saveActiveSheetDraft}>Guardar hoja</button>
+        <button type="button" className="secondary" onClick={saveActiveSheetDraft} disabled={!allowSheetEdition}>Guardar hoja</button>
       </div>
       <p>
         Cada hoja guarda fecha, evento y destino final. Puedes manejar varios eventos al mismo tiempo y seguir cargando reservas sin perder historial.
@@ -1733,8 +1766,8 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
       <section>
         <h3>Historial operativo</h3>
         <div className="mobile-action-row" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-          <button onClick={addNewSheet}>Nueva hoja</button>
-          <button onClick={duplicateActiveSheet}>Duplicar hoja actual</button>
+          <button onClick={addNewSheet} disabled={!allowSheetEdition}>Nueva hoja</button>
+          <button onClick={duplicateActiveSheet} disabled={!allowSheetEdition}>Duplicar hoja actual</button>
         </div>
 
         <div style={{ display: 'grid', gap: 8 }}>
@@ -1750,7 +1783,7 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
                   <button onClick={() => { setActiveSheetId(sheet.id) }}>
                     Abrir
                   </button>
-                  <button onClick={() => deleteSheet(sheet.id)}>Eliminar</button>
+                  <button onClick={() => deleteSheet(sheet.id)} disabled={!allowSheetEdition}>Eliminar</button>
                 </div>
               </div>
             </div>
@@ -1763,12 +1796,12 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
         <div className="mobile-field-stack" style={{ display: 'grid', gap: 8 }}>
           <label className="mobile-field-row" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <span style={{ minWidth: 160 }}>Fecha del evento</span>
-            <input type="date" value={activeSheet.eventDate || ''} onChange={e => setActiveField('eventDate', e.target.value)} />
+            <input type="date" value={activeSheet.eventDate || ''} onChange={e => setActiveField('eventDate', e.target.value)} disabled={!allowSheetEdition} />
           </label>
 
           <label className="mobile-field-row" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <span style={{ minWidth: 160 }}>Evento / referencia</span>
-            <input type="text" value={activeSheet.eventName || ''} onChange={e => setActiveField('eventName', e.target.value)} placeholder="Ej: Isis Viernes" />
+            <input type="text" value={activeSheet.eventName || ''} onChange={e => setActiveField('eventName', e.target.value)} placeholder="Ej: Isis Viernes" disabled={!allowSheetEdition} />
           </label>
 
           <label className="mobile-field-row" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -1778,6 +1811,7 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
               value={activeSheet.destinationCity || ''}
               onChange={e => setDestination(e.target.value)}
               placeholder="Ej: Vicuña Mackenna"
+              disabled={!allowSheetEdition}
             />
             <datalist id="destination-list">
               {destinationOptions.map(dest => <option key={dest} value={dest} />)}
@@ -1788,8 +1822,8 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
             <span className="mobile-field-label" style={{ minWidth: 160 }}>Empresas a considerar</span>
             <div className="mobile-field-body" style={{ display: 'grid', gap: 6 }}>
               <div className="mobile-action-row" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button type="button" onClick={clearCompanyFilter}>Sin filtro</button>
-                <button type="button" onClick={selectAllCompanies}>Seleccionar todas</button>
+                <button type="button" onClick={clearCompanyFilter} disabled={!allowSheetEdition}>Sin filtro</button>
+                <button type="button" onClick={selectAllCompanies} disabled={!allowSheetEdition}>Seleccionar todas</button>
               </div>
               {allCompaniesForSelection.length === 0 && (
                 <span style={{ color: '#666' }}>No hay empresas cargadas.</span>
@@ -1799,7 +1833,7 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
                 const available = activeSheet?.destinationCity ? availableCompanyIdsForCurrentDestination.has(company.ID_Empresa) : true
                 return (
                   <label key={company.ID_Empresa} style={{ display: 'flex', alignItems: 'center', gap: 6, opacity: available ? 1 : 0.55 }}>
-                    <input type="checkbox" checked={checked} onChange={() => toggleCompany(company.ID_Empresa)} />
+                    <input type="checkbox" checked={checked} onChange={() => toggleCompany(company.ID_Empresa)} disabled={!allowSheetEdition} />
                     <span className={available ? 'status-chip' : 'attention-chip'}>{company.Nombre_Empresa} ({company.ID_Empresa}){available ? '' : ' - sin rutas para este destino'}</span>
                   </label>
                 )
@@ -1848,6 +1882,7 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
                   value={inputNumberOrBlank(activeSheet.demandByTown?.[origin] ?? '')}
                   onChange={e => setDemand(origin, e.target.value)}
                   style={{ textAlign: 'right' }}
+                  disabled={!allowDemandEdition}
                 />
                 <input
                   type="number"
@@ -1856,6 +1891,7 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
                   value={inputNumberOrBlank(activeSheet.pricesByTown?.[normalizeText(origin)] ?? '')}
                   onChange={e => setTownPrice(origin, e.target.value)}
                   style={{ textAlign: 'right' }}
+                  disabled={!allowPriceEdition}
                 />
               </label>
             ))}
@@ -1864,8 +1900,8 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
 
         <div className="mobile-action-row" style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button onClick={calculateBestOptions}>Calcular mejores opciones</button>
-          <button onClick={clearDemand}>Limpiar pasajeros de esta hoja</button>
-          <button type="button" className="secondary" onClick={saveActiveSheetDraft}>Guardar hoja</button>
+          <button onClick={clearDemand} disabled={!allowDemandEdition}>Limpiar pasajeros de esta hoja</button>
+          <button type="button" className="secondary" onClick={saveActiveSheetDraft} disabled={!allowSheetEdition}>Guardar hoja</button>
         </div>
 
         {activeSheet.lastCalculatedAt && (
@@ -2202,6 +2238,7 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
                                   type="checkbox"
                                   checked={Boolean(reboundConfig.enabled)}
                                   onChange={e => updateReboundConfig(row.unitId, { enabled: e.target.checked })}
+                                  disabled={!allowPriceEdition}
                                 />
                               </td>
                               <td style={{ borderBottom: '1px solid #eee', padding: 6 }}><span className="status-chip">{row.groupLabel}</span></td>
@@ -2212,6 +2249,7 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
                                 <select
                                   value={selectedTownKey}
                                   onChange={e => updateReboundSelection(row.unitId, e.target.value)}
+                                  disabled={!allowPriceEdition}
                                 >
                                   <option value="">Sin rebote</option>
                                   {options.map(option => (
@@ -2233,6 +2271,7 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
                                   value={inputNumberOrBlank(reboundConfig.quotedCost ?? '')}
                                   onChange={e => updateReboundConfig(row.unitId, { quotedCost: Math.max(0, Number(e.target.value || 0)) })}
                                   style={{ width: 120, textAlign: 'right' }}
+                                  disabled={!allowPriceEdition}
                                 />
                               </td>
                               <td style={{ borderBottom: '1px solid #eee', padding: 6, textAlign: 'right' }}>
@@ -2243,6 +2282,7 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
                                   value={inputNumberOrBlank(reboundConfig.reboundPricePerPax ?? '')}
                                   onChange={e => updateReboundConfig(row.unitId, { reboundPricePerPax: Math.max(0, Number(e.target.value || 0)) })}
                                   style={{ width: 120, textAlign: 'right' }}
+                                  disabled={!allowPriceEdition}
                                 />
                               </td>
                               <td style={{ borderBottom: '1px solid #eee', padding: 6, textAlign: 'right' }}>
@@ -2274,7 +2314,7 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
                 ))}
               </select>
             </label>
-              <button type="button" className="secondary" onClick={saveActiveSheetDraft}>Guardar hoja</button>
+              <button type="button" className="secondary" onClick={saveActiveSheetDraft} disabled={!allowSheetEdition}>Guardar hoja</button>
           </div>
           <div className="report-actions">
             <button type="button" onClick={() => copyOperationalReport()}>Copiar hoja general</button>
