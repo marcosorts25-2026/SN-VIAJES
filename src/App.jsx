@@ -13,6 +13,7 @@ import {
   getUserProfile,
   isAuthConfigured,
   signInWithEmail,
+  signUpWithEmail,
   signOutCurrentUser,
   subscribeAuthState
 } from './auth'
@@ -178,10 +179,34 @@ export default function App() {
       await signInWithEmail(email, password)
     } catch (error) {
       const code = String(error?.code || '')
-      if (code.includes('invalid-credential') || code.includes('wrong-password') || code.includes('user-not-found')) {
+      if (code.includes('configuration-not-found')) {
+        setAuthError('Firebase Authentication no esta habilitado para este proyecto. Debes activar Email/Password en Firebase Console > Authentication > Sign-in method.')
+      } else if (code.includes('invalid-credential') || code.includes('wrong-password') || code.includes('user-not-found')) {
         setAuthError('Usuario o contraseña incorrectos.')
       } else {
         setAuthError(error?.message || 'No se pudo iniciar sesión.')
+      }
+    } finally {
+      setAuthBusy(false)
+    }
+  }
+
+  const doCreateFirstOwner = async ({ email, password }) => {
+    setAuthBusy(true)
+    setAuthError('')
+    try {
+      await signUpWithEmail(email, password)
+      // El onAuthStateChanged ejecuta ensureBootstrapOwner y completa el alta owner.
+    } catch (error) {
+      const code = String(error?.code || '')
+      if (code.includes('configuration-not-found')) {
+        setAuthError('Firebase Authentication no esta habilitado para este proyecto. Debes activar Email/Password en Firebase Console > Authentication > Sign-in method.')
+      } else if (code.includes('email-already-in-use')) {
+        setAuthError('Ese email ya existe. Ingresa con ese usuario.')
+      } else if (code.includes('weak-password')) {
+        setAuthError('La contraseña es muy débil. Usa al menos 6 caracteres.')
+      } else {
+        setAuthError(error?.message || 'No se pudo crear el primer propietario.')
       }
     } finally {
       setAuthBusy(false)
@@ -241,6 +266,7 @@ export default function App() {
         {authReady && !currentUser && (
           <LoginPanel
             onLogin={doLogin}
+            onCreateFirstOwner={doCreateFirstOwner}
             loading={authBusy}
             errorText={authError}
             authUnavailable={!authConfigured}

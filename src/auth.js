@@ -68,6 +68,12 @@ export async function signInWithEmail(email, password) {
   return signInWithEmailAndPassword(auth, String(email || '').trim(), String(password || ''))
 }
 
+export async function signUpWithEmail(email, password) {
+  const { auth } = await getFirebaseCore()
+  const { createUserWithEmailAndPassword } = await import('firebase/auth')
+  return createUserWithEmailAndPassword(auth, String(email || '').trim(), String(password || ''))
+}
+
 export async function signOutCurrentUser() {
   const { auth } = await getFirebaseCore()
   const { signOut } = await import('firebase/auth')

@@ -1,12 +1,17 @@
 import React from 'react'
 
-export default function LoginPanel({ onLogin, loading, errorText, authUnavailable }) {
+export default function LoginPanel({ onLogin, onCreateFirstOwner, loading, errorText, authUnavailable }) {
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
 
   function submit(event) {
     event.preventDefault()
     onLogin?.({ email, password })
+  }
+
+  function createFirstOwner(event) {
+    event.preventDefault()
+    onCreateFirstOwner?.({ email, password })
   }
 
   return (
@@ -43,6 +48,9 @@ export default function LoginPanel({ onLogin, loading, errorText, authUnavailabl
         />
         <button type="submit" disabled={loading || authUnavailable}>
           {loading ? 'Ingresando...' : 'Ingresar'}
+        </button>
+        <button type="button" onClick={createFirstOwner} disabled={loading || authUnavailable}>
+          {loading ? 'Procesando...' : 'Crear primer propietario'}
         </button>
       </form>
 
