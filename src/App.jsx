@@ -4,6 +4,18 @@ import AdminPanel from './AdminPanel'
 import GeneralQuote from './GeneralQuote'
 import ExpressSearch from './ExpressSearch'
 import visualLogo from './assets/somos-noche-logo.svg'
+import LoginPanel from './LoginPanel'
+import UserManagementPanel from './UserManagementPanel'
+import {
+  ROLE_ADMIN,
+  ROLE_OWNER,
+  ensureBootstrapOwner,
+  getUserProfile,
+  isAuthConfigured,
+  signInWithEmail,
+  signOutCurrentUser,
+  subscribeAuthState
+} from './auth'
 
 class LazyViewErrorBoundary extends React.Component {
   constructor(props) {
@@ -44,6 +56,14 @@ export default function App() {
     }
   })
   const isHomeView = view === null
+  const [authConfigured, setAuthConfigured] = React.useState(true)
+  const [authReady, setAuthReady] = React.useState(false)
+  const [authBusy, setAuthBusy] = React.useState(false)
+  const [authError, setAuthError] = React.useState('')
+  const [currentUser, setCurrentUser] = React.useState(null)
+  const [currentProfile, setCurrentProfile] = React.useState(null)
+
+  const canAccessAdmin = [ROLE_OWNER, ROLE_ADMIN].includes(String(currentProfile?.role || '').toLowerCase())
 
   React.useEffect(() => {
     const handler = (e) => {
@@ -52,6 +72,82 @@ export default function App() {
     }
     window.addEventListener('beforeinstallprompt', handler)
     return () => window.removeEventListener('beforeinstallprompt', handler)
+  }, [])
+
+  React.useEffect(() => {
+    let mounted = true
+    let unsubscribe = null
+
+    ;(async () => {
+      try {
+        const configured = await isAuthConfigured()
+        if (!mounted) return
+        setAuthConfigured(configured)
+
+        if (!configured) {
+          setAuthReady(true)
+          setAuthError('Firebase Authentication no esta configurado.')
+          return
+        }
+
+        unsubscribe = await subscribeAuthState(async firebaseUser => {
+          if (!mounted) return
+
+          if (!firebaseUser) {
+            setCurrentUser(null)
+            setCurrentProfile(null)
+            setAuthReady(true)
+            return
+          }
+
+          try {
+            const bootstrapProfile = await ensureBootstrapOwner(firebaseUser)
+            const profile = bootstrapProfile || await getUserProfile(firebaseUser.uid)
+
+            if (!mounted) return
+
+            if (!profile) {
+              setCurrentUser(firebaseUser)
+              setCurrentProfile(null)
+              setAuthError('Tu usuario no tiene perfil ni permisos en esta app. Contacta al propietario.')
+              setAuthReady(true)
+              return
+            }
+
+            if (profile.active === false) {
+              await signOutCurrentUser()
+              if (!mounted) return
+              setAuthError('Tu usuario fue dado de baja y no tiene acceso.')
+              setCurrentUser(null)
+              setCurrentProfile(null)
+              setAuthReady(true)
+              return
+            }
+
+            setAuthError('')
+            setCurrentUser(firebaseUser)
+            setCurrentProfile({ ...profile, uid: firebaseUser.uid })
+            setAuthReady(true)
+          } catch (error) {
+            if (!mounted) return
+            setAuthError(error?.message || 'No se pudo validar tu usuario.')
+            setCurrentUser(null)
+            setCurrentProfile(null)
+            setAuthReady(true)
+          }
+        })
+      } catch (error) {
+        if (!mounted) return
+        setAuthConfigured(false)
+        setAuthReady(true)
+        setAuthError(error?.message || 'No se pudo iniciar autenticacion.')
+      }
+    })()
+
+    return () => {
+      mounted = false
+      if (typeof unsubscribe === 'function') unsubscribe()
+    }
   }, [])
 
   const installApp = async () => {
@@ -74,6 +170,29 @@ export default function App() {
 
   const currentUrl = typeof window !== 'undefined' ? window.location.href : ''
   const rightsText = 'Derechos de autor y dueño de la app: Marcos Orts | Contacto: 3583596542'
+
+  const doLogin = async ({ email, password }) => {
+    setAuthBusy(true)
+    setAuthError('')
+    try {
+      await signInWithEmail(email, password)
+    } catch (error) {
+      const code = String(error?.code || '')
+      if (code.includes('invalid-credential') || code.includes('wrong-password') || code.includes('user-not-found')) {
+        setAuthError('Usuario o contraseña incorrectos.')
+      } else {
+        setAuthError(error?.message || 'No se pudo iniciar sesión.')
+      }
+    } finally {
+      setAuthBusy(false)
+    }
+  }
+
+  const doLogout = async () => {
+    setAuthError('')
+    await signOutCurrentUser()
+    setView(null)
+  }
 
   React.useEffect(() => {
     try {
@@ -98,6 +217,13 @@ export default function App() {
         </div>
         <h1>SOMOS NOCHE TRANSPORTE</h1>
         <p className="subtitle">Gestión premium de rutas, reservas y cotizaciones en una sola plataforma</p>
+        {currentUser && currentProfile && (
+          <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <span>Usuario: <strong>{currentProfile.name || currentUser.email}</strong></span>
+            <span>Rol: <strong>{String(currentProfile.role || '').toUpperCase()}</strong></span>
+            <button type="button" onClick={doLogout}>Cerrar sesión</button>
+          </div>
+        )}
       </header>
 
       <div className="global-watermark" aria-hidden="true">
@@ -105,6 +231,32 @@ export default function App() {
       </div>
 
       <main className="app-main">
+        {!authReady && (
+          <section className="details">
+            <h2>Iniciando sesión segura...</h2>
+            <p>Estamos validando el acceso.</p>
+          </section>
+        )}
+
+        {authReady && !currentUser && (
+          <LoginPanel
+            onLogin={doLogin}
+            loading={authBusy}
+            errorText={authError}
+            authUnavailable={!authConfigured}
+          />
+        )}
+
+        {authReady && currentUser && !currentProfile && (
+          <section className="details" style={{ maxWidth: 560, margin: '1.5rem auto' }}>
+            <h2>Sin permisos de acceso</h2>
+            <p>{authError || 'Tu cuenta no tiene permisos asignados en esta app.'}</p>
+            <button onClick={doLogout}>Cerrar sesión</button>
+          </section>
+        )}
+
+        {authReady && currentUser && currentProfile && (
+          <>
         {deferredPrompt && (
           <button className="install-btn" onClick={installApp}>Instalar aplicación</button>
         )}
@@ -126,9 +278,11 @@ export default function App() {
                 <button className="hero-button" onClick={() => setView('express')} aria-label="Abrir búsqueda express">
                   Búsqueda express
                 </button>
-                <button className="hero-button" onClick={() => setView('admin')} aria-label="Abrir Admin">
-                  Abrir administración
-                </button>
+                {canAccessAdmin && (
+                  <button className="hero-button" onClick={() => setView('admin')} aria-label="Abrir Admin">
+                    Abrir administración
+                  </button>
+                )}
               </div>
             </section>
 
@@ -220,9 +374,19 @@ export default function App() {
             <button className="back" onClick={() => setView(null)}>← Volver</button>
             <h2>Administración</h2>
             <p>Gestión de datos, rutas y vehículos con una interfaz más estable y clara.</p>
-            <AdminPanel />
+            {canAccessAdmin ? (
+              <>
+                <UserManagementPanel actorProfile={currentProfile} />
+                <AdminPanel />
+              </>
+            ) : (
+              <p>No tienes permisos para ingresar al panel de administración.</p>
+            )}
             <div className="section-rights">{rightsText}</div>
           </section>
+        )}
+
+          </>
         )}
 
       </main>

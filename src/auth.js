@@ -1,0 +1,256 @@
+const BASE_URL = import.meta.env.BASE_URL || '/'
+const FIREBASE_CONFIG_PATH = `${BASE_URL}firebase-config.json`
+
+let firebaseConfigPromise = null
+let firebaseCorePromise = null
+
+export const ROLE_OWNER = 'owner'
+export const ROLE_ADMIN = 'admin'
+export const ROLE_OPERADOR = 'operador'
+export const ROLE_LECTURA = 'lectura'
+export const ROLE_OPTIONS = [ROLE_OWNER, ROLE_ADMIN, ROLE_OPERADOR, ROLE_LECTURA]
+
+function nowIso() {
+  return new Date().toISOString()
+}
+
+async function getFirebaseConfig() {
+  if (firebaseConfigPromise) return firebaseConfigPromise
+  firebaseConfigPromise = (async () => {
+    const response = await fetch(FIREBASE_CONFIG_PATH, { cache: 'no-store' })
+    if (!response.ok) throw new Error('No se encontro firebase-config.json')
+    const cfg = await response.json()
+    if (!cfg || typeof cfg !== 'object' || Object.keys(cfg).length === 0) {
+      throw new Error('Configuracion Firebase vacia')
+    }
+    return cfg
+  })()
+  return firebaseConfigPromise
+}
+
+async function getFirebaseCore() {
+  if (firebaseCorePromise) return firebaseCorePromise
+  firebaseCorePromise = (async () => {
+    const cfg = await getFirebaseConfig()
+    const [{ initializeApp, getApps, getApp }, { getAuth }, { getDatabase }] = await Promise.all([
+      import('firebase/app'),
+      import('firebase/auth'),
+      import('firebase/database')
+    ])
+
+    const app = getApps().length ? getApp() : initializeApp(cfg)
+    const auth = getAuth(app)
+    const db = getDatabase(app)
+
+    return { cfg, app, auth, db }
+  })()
+  return firebaseCorePromise
+}
+
+export async function isAuthConfigured() {
+  try {
+    await getFirebaseCore()
+    return true
+  } catch (e) {
+    return false
+  }
+}
+
+export async function subscribeAuthState(handler) {
+  const { auth } = await getFirebaseCore()
+  const { onAuthStateChanged } = await import('firebase/auth')
+  return onAuthStateChanged(auth, handler)
+}
+
+export async function signInWithEmail(email, password) {
+  const { auth } = await getFirebaseCore()
+  const { signInWithEmailAndPassword } = await import('firebase/auth')
+  return signInWithEmailAndPassword(auth, String(email || '').trim(), String(password || ''))
+}
+
+export async function signOutCurrentUser() {
+  const { auth } = await getFirebaseCore()
+  const { signOut } = await import('firebase/auth')
+  await signOut(auth)
+}
+
+function normalizeProfile(uid, raw) {
+  const role = ROLE_OPTIONS.includes(String(raw?.role || '').toLowerCase()) ? String(raw.role).toLowerCase() : ROLE_LECTURA
+  return {
+    uid,
+    name: String(raw?.name || '').trim(),
+    email: String(raw?.email || '').trim(),
+    role,
+    active: raw?.active !== false,
+    createdAt: String(raw?.createdAt || ''),
+    updatedAt: String(raw?.updatedAt || ''),
+    disabledAt: String(raw?.disabledAt || '')
+  }
+}
+
+export async function getUserProfile(uid) {
+  if (!uid) return null
+  const { db } = await getFirebaseCore()
+  const { ref, get } = await import('firebase/database')
+  const snapshot = await get(ref(db, `/snt_users/${uid}`))
+  if (!snapshot.exists()) return null
+  return normalizeProfile(uid, snapshot.val())
+}
+
+export async function listUserProfiles() {
+  const { db } = await getFirebaseCore()
+  const { ref, get } = await import('firebase/database')
+  const snapshot = await get(ref(db, '/snt_users'))
+  if (!snapshot.exists()) return []
+  const raw = snapshot.val() || {}
+  return Object.entries(raw)
+    .map(([uid, profile]) => normalizeProfile(uid, profile))
+    .sort((a, b) => {
+      if (a.role !== b.role) {
+        const order = { owner: 1, admin: 2, operador: 3, lectura: 4 }
+        return Number(order[a.role] || 99) - Number(order[b.role] || 99)
+      }
+      return String(a.name || a.email || '').localeCompare(String(b.name || b.email || ''), 'es')
+    })
+}
+
+export async function ensureBootstrapOwner(user) {
+  if (!user?.uid) return null
+  const { db } = await getFirebaseCore()
+  const { ref, get, set } = await import('firebase/database')
+
+  const usersRef = ref(db, '/snt_users')
+  const usersSnapshot = await get(usersRef)
+  const hasUsers = usersSnapshot.exists() && Object.keys(usersSnapshot.val() || {}).length > 0
+
+  const profileRef = ref(db, `/snt_users/${user.uid}`)
+  const profileSnapshot = await get(profileRef)
+
+  if (profileSnapshot.exists()) {
+    return normalizeProfile(user.uid, profileSnapshot.val())
+  }
+
+  if (!hasUsers) {
+    const profile = {
+      name: String(user.displayName || '').trim() || 'Propietario',
+      email: String(user.email || '').trim(),
+      role: ROLE_OWNER,
+      active: true,
+      createdAt: nowIso(),
+      updatedAt: nowIso()
+    }
+    await set(profileRef, profile)
+    return normalizeProfile(user.uid, profile)
+  }
+
+  return null
+}
+
+function canManageUsers(profile) {
+  const role = String(profile?.role || '').toLowerCase()
+  return role === ROLE_OWNER || role === ROLE_ADMIN
+}
+
+function canAssignRole(actorRole, targetRole) {
+  if (actorRole === ROLE_OWNER) return ROLE_OPTIONS.includes(targetRole)
+  if (actorRole === ROLE_ADMIN) return targetRole === ROLE_OPERADOR || targetRole === ROLE_LECTURA
+  return false
+}
+
+function canModifyTarget(actor, target) {
+  const actorRole = String(actor?.role || '').toLowerCase()
+  const targetRole = String(target?.role || '').toLowerCase()
+
+  if (actorRole === ROLE_OWNER) return true
+  if (actorRole === ROLE_ADMIN) {
+    return targetRole === ROLE_OPERADOR || targetRole === ROLE_LECTURA
+  }
+  return false
+}
+
+export async function createUserByManager(actorProfile, payload) {
+  if (!canManageUsers(actorProfile)) throw new Error('No tienes permisos para crear usuarios')
+
+  const email = String(payload?.email || '').trim().toLowerCase()
+  const password = String(payload?.password || '')
+  const name = String(payload?.name || '').trim()
+  const role = String(payload?.role || ROLE_OPERADOR).toLowerCase()
+
+  if (!email || !password) throw new Error('Email y contraseña son obligatorios')
+  if (password.length < 6) throw new Error('La contraseña debe tener al menos 6 caracteres')
+  if (!canAssignRole(String(actorProfile?.role || '').toLowerCase(), role)) {
+    throw new Error('No tienes permisos para asignar ese rol')
+  }
+
+  const core = await getFirebaseCore()
+  const { initializeApp, deleteApp } = await import('firebase/app')
+  const { getAuth, createUserWithEmailAndPassword, signOut } = await import('firebase/auth')
+  const { ref, set } = await import('firebase/database')
+
+  const tempAppName = `snt-user-create-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+  const tempApp = initializeApp(core.cfg, tempAppName)
+  const tempAuth = getAuth(tempApp)
+
+  let newUid = ''
+  try {
+    const created = await createUserWithEmailAndPassword(tempAuth, email, password)
+    newUid = created?.user?.uid || ''
+    if (!newUid) throw new Error('No se pudo obtener UID del nuevo usuario')
+
+    const profile = {
+      name: name || email,
+      email,
+      role,
+      active: true,
+      createdAt: nowIso(),
+      updatedAt: nowIso()
+    }
+
+    await set(ref(core.db, `/snt_users/${newUid}`), profile)
+    return normalizeProfile(newUid, profile)
+  } finally {
+    try { await signOut(tempAuth) } catch (e) {}
+    try { await deleteApp(tempApp) } catch (e) {}
+  }
+}
+
+export async function updateUserProfileByManager(actorProfile, targetUid, updates) {
+  if (!canManageUsers(actorProfile)) throw new Error('No tienes permisos para editar usuarios')
+  if (!targetUid) throw new Error('Usuario destino inválido')
+
+  const current = await getUserProfile(targetUid)
+  if (!current) throw new Error('El usuario no existe')
+  if (!canModifyTarget(actorProfile, current)) throw new Error('No tienes permisos para editar este usuario')
+
+  const actorRole = String(actorProfile?.role || '').toLowerCase()
+  const nextRole = updates?.role ? String(updates.role).toLowerCase() : current.role
+  if (!canAssignRole(actorRole, nextRole)) throw new Error('No puedes asignar ese rol')
+
+  const next = {
+    ...current,
+    name: updates?.name !== undefined ? String(updates.name || '').trim() : current.name,
+    role: nextRole,
+    active: updates?.active !== undefined ? Boolean(updates.active) : current.active,
+    updatedAt: nowIso()
+  }
+
+  if (!next.active) {
+    next.disabledAt = next.disabledAt || nowIso()
+  } else {
+    next.disabledAt = ''
+  }
+
+  const { db } = await getFirebaseCore()
+  const { ref, set } = await import('firebase/database')
+  await set(ref(db, `/snt_users/${targetUid}`), {
+    name: next.name,
+    email: next.email,
+    role: next.role,
+    active: next.active,
+    createdAt: next.createdAt,
+    updatedAt: next.updatedAt,
+    disabledAt: next.disabledAt
+  })
+
+  return next
+}
