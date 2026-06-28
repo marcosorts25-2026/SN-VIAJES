@@ -1,5 +1,6 @@
 const BASE_URL = import.meta.env.BASE_URL || '/'
 const FIREBASE_CONFIG_PATH = `${BASE_URL}firebase-config.json`
+const AUTH_EMAIL_DOMAIN = 'snt.local'
 
 let firebaseConfigPromise = null
 let firebaseCorePromise = null
@@ -12,6 +13,33 @@ export const ROLE_OPTIONS = [ROLE_OWNER, ROLE_ADMIN, ROLE_OPERADOR, ROLE_LECTURA
 
 function nowIso() {
   return new Date().toISOString()
+}
+
+function normalizeUsername(value) {
+  return String(value || '').trim().toLowerCase()
+}
+
+export function isValidUsername(value) {
+  const username = normalizeUsername(value)
+  return /^[a-z0-9._-]{3,30}$/.test(username)
+}
+
+function usernameToAuthEmail(username) {
+  return `${normalizeUsername(username)}@${AUTH_EMAIL_DOMAIN}`
+}
+
+function authEmailToUsername(authEmail) {
+  const email = String(authEmail || '').trim().toLowerCase()
+  if (!email.includes('@')) return ''
+  const local = email.split('@')[0]
+  return normalizeUsername(local)
+}
+
+function fallbackUsername(uid, authEmail) {
+  const fromEmail = authEmailToUsername(authEmail)
+  if (isValidUsername(fromEmail)) return fromEmail
+  const fromUid = normalizeUsername(`user-${String(uid || '').slice(0, 8)}`)
+  return isValidUsername(fromUid) ? fromUid : 'user-temp'
 }
 
 async function getFirebaseConfig() {
@@ -108,6 +136,40 @@ export async function signUpWithEmail(email, password) {
   return createUserWithEmailAndPassword(auth, String(email || '').trim(), String(password || ''))
 }
 
+async function listProfilesMap() {
+  const { db } = await getFirebaseCore()
+  const { ref, get } = await import('firebase/database')
+  const snapshot = await get(ref(db, '/snt_users'))
+  if (!snapshot.exists()) return []
+  const raw = snapshot.val() || {}
+  return Object.entries(raw).map(([uid, profile]) => normalizeProfile(uid, profile))
+}
+
+async function resolveProfileForUsername(username) {
+  const wanted = normalizeUsername(username)
+  if (!wanted) return null
+  const profiles = await listProfilesMap()
+  return profiles.find(profile => normalizeUsername(profile.username) === wanted) || null
+}
+
+export async function signInWithUsername(username, password) {
+  const profile = await resolveProfileForUsername(username)
+  if (!profile?.authEmail) {
+    const error = new Error('Usuario no encontrado')
+    error.code = 'auth/user-not-found'
+    throw error
+  }
+  return signInWithEmail(profile.authEmail, password)
+}
+
+export async function signUpWithUsername(username, password) {
+  const normalized = normalizeUsername(username)
+  if (!isValidUsername(normalized)) {
+    throw new Error('El usuario debe tener entre 3 y 30 caracteres: letras, números, punto, guion o guion bajo.')
+  }
+  return signUpWithEmail(usernameToAuthEmail(normalized), password)
+}
+
 export async function signOutCurrentUser() {
   const { auth } = await getFirebaseCore()
   const { signOut } = await import('firebase/auth')
@@ -116,9 +178,13 @@ export async function signOutCurrentUser() {
 
 function normalizeProfile(uid, raw) {
   const role = ROLE_OPTIONS.includes(String(raw?.role || '').toLowerCase()) ? String(raw.role).toLowerCase() : ROLE_LECTURA
+  const authEmail = String(raw?.authEmail || raw?.email || '').trim().toLowerCase()
+  const username = normalizeUsername(raw?.username) || fallbackUsername(uid, authEmail)
   return {
     uid,
     name: String(raw?.name || '').trim(),
+    username,
+    authEmail,
     email: String(raw?.email || '').trim(),
     role,
     active: raw?.active !== false,
@@ -150,7 +216,7 @@ export async function listUserProfiles() {
         const order = { owner: 1, admin: 2, operador: 3, lectura: 4 }
         return Number(order[a.role] || 99) - Number(order[b.role] || 99)
       }
-      return String(a.name || a.email || '').localeCompare(String(b.name || b.email || ''), 'es')
+      return String(a.name || a.username || '').localeCompare(String(b.name || b.username || ''), 'es')
     })
 }
 
@@ -181,13 +247,24 @@ export async function ensureBootstrapOwner(user) {
   const profileSnapshot = await get(profileRef)
 
   if (profileSnapshot.exists()) {
-    return normalizeProfile(user.uid, profileSnapshot.val())
+    const profile = normalizeProfile(user.uid, profileSnapshot.val())
+    if (!profileSnapshot.val()?.username || !profileSnapshot.val()?.authEmail) {
+      await set(profileRef, {
+        ...profileSnapshot.val(),
+        username: profile.username,
+        authEmail: profile.authEmail || usernameToAuthEmail(profile.username),
+        updatedAt: nowIso()
+      })
+    }
+    return profile
   }
 
   if (!hasUsers) {
     const profile = {
       name: String(user.displayName || '').trim() || 'Propietario',
-      email: String(user.email || '').trim(),
+      username: fallbackUsername(user.uid, user.email),
+      authEmail: String(user.email || '').trim().toLowerCase(),
+      email: '',
       role: ROLE_OWNER,
       active: true,
       createdAt: nowIso(),
@@ -219,16 +296,20 @@ function canModifyTarget(actor, target) {
 export async function createUserByManager(actorProfile, payload) {
   if (!canManageUsers(actorProfile)) throw new Error('No tienes permisos para crear usuarios')
 
-  const email = String(payload?.email || '').trim().toLowerCase()
+  const username = normalizeUsername(payload?.username)
   const password = String(payload?.password || '')
   const name = String(payload?.name || '').trim()
   const role = String(payload?.role || ROLE_OPERADOR).toLowerCase()
 
-  if (!email || !password) throw new Error('Email y contraseña son obligatorios')
+  if (!isValidUsername(username)) throw new Error('El usuario debe tener entre 3 y 30 caracteres: letras, números, punto, guion o guion bajo.')
+  if (!password) throw new Error('Usuario y contraseña son obligatorios')
   if (password.length < 6) throw new Error('La contraseña debe tener al menos 6 caracteres')
   if (!canAssignRole(String(actorProfile?.role || '').toLowerCase(), role)) {
     throw new Error('No tienes permisos para asignar ese rol')
   }
+
+  const existingProfile = await resolveProfileForUsername(username)
+  if (existingProfile) throw new Error('Ese nombre de usuario ya existe')
 
   const core = await getFirebaseCore()
   const { initializeApp, deleteApp } = await import('firebase/app')
@@ -241,13 +322,16 @@ export async function createUserByManager(actorProfile, payload) {
 
   let newUid = ''
   try {
-    const created = await createUserWithEmailAndPassword(tempAuth, email, password)
+    const authEmail = usernameToAuthEmail(username)
+    const created = await createUserWithEmailAndPassword(tempAuth, authEmail, password)
     newUid = created?.user?.uid || ''
     if (!newUid) throw new Error('No se pudo obtener UID del nuevo usuario')
 
     const profile = {
-      name: name || email,
-      email,
+      name: name || username,
+      username,
+      authEmail,
+      email: '',
       role,
       active: true,
       createdAt: nowIso(),
@@ -292,6 +376,8 @@ export async function updateUserProfileByManager(actorProfile, targetUid, update
   const { ref, set } = await import('firebase/database')
   await set(ref(db, `/snt_users/${targetUid}`), {
     name: next.name,
+    username: next.username,
+    authEmail: next.authEmail,
     email: next.email,
     role: next.role,
     active: next.active,

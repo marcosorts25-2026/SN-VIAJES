@@ -34,7 +34,7 @@ export default function UserManagementPanel({ actorProfile }) {
 
   const [form, setForm] = React.useState({
     name: '',
-    email: '',
+    username: '',
     password: '',
     role: ROLE_OPERADOR
   })
@@ -67,7 +67,7 @@ export default function UserManagementPanel({ actorProfile }) {
     try {
       await createUserByManager(actorProfile, form)
       setMessage('Usuario creado correctamente')
-      setForm({ name: '', email: '', password: '', role: ROLE_OPERADOR })
+      setForm({ name: '', username: '', password: '', role: ROLE_OPERADOR })
       await refreshUsers()
     } catch (error) {
       setErrorText(error?.message || 'No se pudo crear el usuario')
@@ -100,7 +100,7 @@ export default function UserManagementPanel({ actorProfile }) {
       <form onSubmit={submitCreate} style={{ display: 'grid', gap: 8, marginBottom: 12 }}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <input placeholder="Nombre" value={form.name} onChange={event => setForm({ ...form, name: event.target.value })} />
-          <input type="email" placeholder="Email" value={form.email} onChange={event => setForm({ ...form, email: event.target.value })} required />
+          <input type="text" placeholder="Usuario" value={form.username} onChange={event => setForm({ ...form, username: event.target.value })} required />
           <input type="text" placeholder="Contraseña" value={form.password} onChange={event => setForm({ ...form, password: event.target.value })} required />
           <select value={form.role} onChange={event => setForm({ ...form, role: event.target.value })}>
             {allowedRoles.map(role => <option key={role} value={role}>{roleLabel(role)}</option>)}
@@ -116,7 +116,7 @@ export default function UserManagementPanel({ actorProfile }) {
             <thead>
               <tr>
                 <th style={{ textAlign: 'left', borderBottom: '1px solid #ddd', padding: 6 }}>Nombre</th>
-                <th style={{ textAlign: 'left', borderBottom: '1px solid #ddd', padding: 6 }}>Email</th>
+                <th style={{ textAlign: 'left', borderBottom: '1px solid #ddd', padding: 6 }}>Usuario</th>
                 <th style={{ textAlign: 'left', borderBottom: '1px solid #ddd', padding: 6 }}>Rol</th>
                 <th style={{ textAlign: 'left', borderBottom: '1px solid #ddd', padding: 6 }}>Estado</th>
                 <th style={{ textAlign: 'left', borderBottom: '1px solid #ddd', padding: 6 }}>Acciones</th>
@@ -130,7 +130,7 @@ export default function UserManagementPanel({ actorProfile }) {
                 return (
                   <tr key={user.uid}>
                     <td style={{ borderBottom: '1px solid #eee', padding: 6 }}>{user.name || '-'}</td>
-                    <td style={{ borderBottom: '1px solid #eee', padding: 6 }}>{user.email || '-'}</td>
+                    <td style={{ borderBottom: '1px solid #eee', padding: 6 }}>{user.username || '-'}</td>
                     <td style={{ borderBottom: '1px solid #eee', padding: 6 }}>
                       {canEdit ? (
                         <select

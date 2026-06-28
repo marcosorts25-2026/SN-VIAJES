@@ -1,7 +1,7 @@
 import React from 'react'
 
 export default function LoginPanel({ onLogin, onCreateFirstOwner, loading, loadingAction, errorText, authUnavailable, firebaseConnection, canCreateFirstOwner }) {
-  const [email, setEmail] = React.useState('')
+  const [username, setUsername] = React.useState('')
   const [password, setPassword] = React.useState('')
 
   const connectionStatus = String(firebaseConnection?.status || 'checking')
@@ -11,12 +11,12 @@ export default function LoginPanel({ onLogin, onCreateFirstOwner, loading, loadi
 
   function submit(event) {
     event.preventDefault()
-    onLogin?.({ email, password })
+    onLogin?.({ username, password })
   }
 
   function createFirstOwner(event) {
     event.preventDefault()
-    onCreateFirstOwner?.({ email, password })
+    onCreateFirstOwner?.({ username, password })
   }
 
   return (
@@ -44,10 +44,10 @@ export default function LoginPanel({ onLogin, onCreateFirstOwner, loading, loadi
 
       <form onSubmit={submit} style={{ display: 'grid', gap: 8 }}>
         <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={event => setEmail(event.target.value)}
+          type="text"
+          placeholder="Nombre de usuario"
+          value={username}
+          onChange={event => setUsername(event.target.value)}
           required
         />
         <input
@@ -69,7 +69,7 @@ export default function LoginPanel({ onLogin, onCreateFirstOwner, loading, loadi
 
       {canCreateFirstOwner && (
         <p style={{ marginTop: 10, opacity: 0.85 }}>
-          Si eres propietario y aún no tienes usuario, crea el primer usuario desde Firebase Authentication y al primer ingreso quedará como owner automáticamente.
+          Si eres propietario y aún no tienes usuario, crea el primer propietario con usuario y contraseña; al primer ingreso quedará como owner automáticamente.
         </p>
       )}
     </section>

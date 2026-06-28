@@ -15,9 +15,10 @@ import {
   ROLE_OPERADOR,
   ensureBootstrapOwner,
   getUserProfile,
+  isValidUsername,
   isAuthConfigured,
-  signInWithEmail,
-  signUpWithEmail,
+  signInWithUsername,
+  signUpWithUsername,
   signOutCurrentUser,
   subscribeAuthState
 } from './auth'
@@ -85,9 +86,8 @@ export default function App() {
   const canEditPassengerPricing = [ROLE_OWNER, ROLE_ADMIN].includes(currentRole)
   const isReadOnlyRole = currentRole === ROLE_LECTURA
 
-  function isLikelyEmail(value) {
-    const text = String(value || '').trim()
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text)
+  function normalizeUsernameInput(value) {
+    return String(value || '').trim().toLowerCase()
   }
 
   async function withTimeout(promise, ms = 15000) {
@@ -254,11 +254,11 @@ export default function App() {
     return profile
   }
 
-  const doLogin = async ({ email, password }) => {
-    const cleanEmail = String(email || '').trim()
+  const doLogin = async ({ username, password }) => {
+    const cleanUsername = normalizeUsernameInput(username)
     const cleanPassword = String(password || '')
-    if (!isLikelyEmail(cleanEmail)) {
-      setAuthError('Ingresa un email válido, por ejemplo nombre@dominio.com')
+    if (!isValidUsername(cleanUsername)) {
+      setAuthError('Ingresa un usuario válido (3 a 30 caracteres, letras, números, punto, guion o guion bajo).')
       return
     }
     if (!cleanPassword) {
@@ -269,7 +269,7 @@ export default function App() {
     setAuthAction('login')
     setAuthError('')
     try {
-      const credential = await withTimeout(signInWithEmail(cleanEmail, cleanPassword))
+      const credential = await withTimeout(signInWithUsername(cleanUsername, cleanPassword))
       await hydrateSignedUser(credential?.user)
     } catch (error) {
       const code = String(error?.code || '')
@@ -279,7 +279,7 @@ export default function App() {
       } else if (code.includes('configuration-not-found')) {
         setAuthError('Firebase Authentication no esta habilitado para este proyecto. Debes activar Email/Password en Firebase Console > Authentication > Sign-in method.')
       } else if (code.includes('invalid-credential') || code.includes('wrong-password') || code.includes('user-not-found')) {
-        setAuthError('Usuario o contraseña incorrectos.')
+        setAuthError('Nombre de usuario o contraseña incorrectos.')
       } else {
         setAuthError(error?.message || 'No se pudo iniciar sesión.')
       }
@@ -288,11 +288,11 @@ export default function App() {
     }
   }
 
-  const doCreateFirstOwner = async ({ email, password }) => {
-    const cleanEmail = String(email || '').trim()
+  const doCreateFirstOwner = async ({ username, password }) => {
+    const cleanUsername = normalizeUsernameInput(username)
     const cleanPassword = String(password || '')
-    if (!isLikelyEmail(cleanEmail)) {
-      setAuthError('Ingresa un email válido, por ejemplo nombre@dominio.com')
+    if (!isValidUsername(cleanUsername)) {
+      setAuthError('Ingresa un usuario válido (3 a 30 caracteres, letras, números, punto, guion o guion bajo).')
       return
     }
     if (!cleanPassword) {
@@ -303,7 +303,7 @@ export default function App() {
     setAuthAction('create')
     setAuthError('')
     try {
-      const credential = await withTimeout(signUpWithEmail(cleanEmail, cleanPassword))
+      const credential = await withTimeout(signUpWithUsername(cleanUsername, cleanPassword))
       await hydrateSignedUser(credential?.user)
     } catch (error) {
       const code = String(error?.code || '')
@@ -314,14 +314,14 @@ export default function App() {
         setAuthError('Firebase Authentication no esta habilitado para este proyecto. Debes activar Email/Password en Firebase Console > Authentication > Sign-in method.')
       } else if (code.includes('email-already-in-use')) {
         try {
-          const credential = await withTimeout(signInWithEmail(cleanEmail, cleanPassword))
+          const credential = await withTimeout(signInWithUsername(cleanUsername, cleanPassword))
           await hydrateSignedUser(credential?.user)
         } catch (loginError) {
           const loginCode = String(loginError?.code || '')
           if (loginCode.includes('invalid-credential') || loginCode.includes('wrong-password')) {
-            setAuthError('Ese email ya existe, pero la contraseña no coincide. Usa Ingresar con la contraseña correcta.')
+            setAuthError('Ese usuario ya existe, pero la contraseña no coincide. Usa Ingresar con la contraseña correcta.')
           } else {
-            setAuthError('Ese email ya existe. Usa Ingresar con ese usuario.')
+            setAuthError('Ese usuario ya existe. Usa Ingresar con ese usuario.')
           }
         }
       } else if (code.includes('weak-password')) {
@@ -374,7 +374,7 @@ export default function App() {
         <p className="subtitle">Gestión premium de rutas, reservas y cotizaciones en una sola plataforma</p>
         {currentUser && currentProfile && (
           <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <span>Usuario: <strong>{currentProfile.name || currentUser.email}</strong></span>
+            <span>Usuario: <strong>{currentProfile.name || currentProfile.username || currentUser.email}</strong></span>
             <span>Rol: <strong>{String(currentProfile.role || '').toUpperCase()}</strong></span>
             <button type="button" onClick={doLogout}>Cerrar sesión</button>
           </div>
