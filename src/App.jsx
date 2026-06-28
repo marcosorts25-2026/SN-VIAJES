@@ -219,6 +219,24 @@ export default function App() {
   const currentUrl = typeof window !== 'undefined' ? window.location.href : ''
   const rightsText = 'Derechos de autor y dueño de la app: Marcos Orts | Contacto: 3583596542'
 
+  const hydrateSignedUser = async (firebaseUser) => {
+    if (!firebaseUser?.uid) throw new Error('Usuario autenticado inválido')
+    const bootstrapProfile = await withTimeout(ensureBootstrapOwner(firebaseUser), 12000)
+    const profile = bootstrapProfile || await withTimeout(getUserProfile(firebaseUser.uid), 12000)
+
+    if (!profile) throw new Error('Tu usuario no tiene perfil ni permisos en esta app. Contacta al propietario.')
+    if (profile.active === false) {
+      await signOutCurrentUser()
+      throw new Error('Tu usuario fue dado de baja y no tiene acceso.')
+    }
+
+    setCurrentUser(firebaseUser)
+    setCurrentProfile({ ...profile, uid: firebaseUser.uid })
+    setAuthReady(true)
+    setAuthError('')
+    return profile
+  }
+
   const doLogin = async ({ email, password }) => {
     const cleanEmail = String(email || '').trim()
     const cleanPassword = String(password || '')
@@ -234,7 +252,8 @@ export default function App() {
     setAuthAction('login')
     setAuthError('')
     try {
-      await withTimeout(signInWithEmail(cleanEmail, cleanPassword))
+      const credential = await withTimeout(signInWithEmail(cleanEmail, cleanPassword))
+      await hydrateSignedUser(credential?.user)
     } catch (error) {
       const code = String(error?.code || '')
       const msg = String(error?.message || '')
@@ -267,8 +286,8 @@ export default function App() {
     setAuthAction('create')
     setAuthError('')
     try {
-      await withTimeout(signUpWithEmail(cleanEmail, cleanPassword))
-      // El onAuthStateChanged ejecuta ensureBootstrapOwner y completa el alta owner.
+      const credential = await withTimeout(signUpWithEmail(cleanEmail, cleanPassword))
+      await hydrateSignedUser(credential?.user)
     } catch (error) {
       const code = String(error?.code || '')
       const msg = String(error?.message || '')
@@ -278,8 +297,8 @@ export default function App() {
         setAuthError('Firebase Authentication no esta habilitado para este proyecto. Debes activar Email/Password en Firebase Console > Authentication > Sign-in method.')
       } else if (code.includes('email-already-in-use')) {
         try {
-          await withTimeout(signInWithEmail(cleanEmail, cleanPassword))
-          // Si funciona, onAuthStateChanged completa el perfil owner o el ingreso normal.
+          const credential = await withTimeout(signInWithEmail(cleanEmail, cleanPassword))
+          await hydrateSignedUser(credential?.user)
         } catch (loginError) {
           const loginCode = String(loginError?.code || '')
           if (loginCode.includes('invalid-credential') || loginCode.includes('wrong-password')) {
