@@ -66,6 +66,25 @@ export default function App() {
 
   const canAccessAdmin = [ROLE_OWNER, ROLE_ADMIN].includes(String(currentProfile?.role || '').toLowerCase())
 
+  function isLikelyEmail(value) {
+    const text = String(value || '').trim()
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text)
+  }
+
+  async function withTimeout(promise, ms = 15000) {
+    let timer = null
+    try {
+      return await Promise.race([
+        promise,
+        new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new Error('auth-timeout')), ms)
+        })
+      ])
+    } finally {
+      if (timer) clearTimeout(timer)
+    }
+  }
+
   React.useEffect(() => {
     const handler = (e) => {
       e.preventDefault()
@@ -173,13 +192,27 @@ export default function App() {
   const rightsText = 'Derechos de autor y dueño de la app: Marcos Orts | Contacto: 3583596542'
 
   const doLogin = async ({ email, password }) => {
+    const cleanEmail = String(email || '').trim()
+    const cleanPassword = String(password || '')
+    if (!isLikelyEmail(cleanEmail)) {
+      setAuthError('Ingresa un email válido, por ejemplo nombre@dominio.com')
+      return
+    }
+    if (!cleanPassword) {
+      setAuthError('Ingresa tu contraseña.')
+      return
+    }
+
     setAuthBusy(true)
     setAuthError('')
     try {
-      await signInWithEmail(email, password)
+      await withTimeout(signInWithEmail(cleanEmail, cleanPassword))
     } catch (error) {
       const code = String(error?.code || '')
-      if (code.includes('configuration-not-found')) {
+      const msg = String(error?.message || '')
+      if (msg.includes('auth-timeout')) {
+        setAuthError('No hubo respuesta de Firebase. Verifica internet y vuelve a intentar.')
+      } else if (code.includes('configuration-not-found')) {
         setAuthError('Firebase Authentication no esta habilitado para este proyecto. Debes activar Email/Password en Firebase Console > Authentication > Sign-in method.')
       } else if (code.includes('invalid-credential') || code.includes('wrong-password') || code.includes('user-not-found')) {
         setAuthError('Usuario o contraseña incorrectos.')
@@ -192,18 +225,32 @@ export default function App() {
   }
 
   const doCreateFirstOwner = async ({ email, password }) => {
+    const cleanEmail = String(email || '').trim()
+    const cleanPassword = String(password || '')
+    if (!isLikelyEmail(cleanEmail)) {
+      setAuthError('Ingresa un email válido, por ejemplo nombre@dominio.com')
+      return
+    }
+    if (!cleanPassword) {
+      setAuthError('Ingresa una contraseña para crear el propietario.')
+      return
+    }
+
     setAuthBusy(true)
     setAuthError('')
     try {
-      await signUpWithEmail(email, password)
+      await withTimeout(signUpWithEmail(cleanEmail, cleanPassword))
       // El onAuthStateChanged ejecuta ensureBootstrapOwner y completa el alta owner.
     } catch (error) {
       const code = String(error?.code || '')
-      if (code.includes('configuration-not-found')) {
+      const msg = String(error?.message || '')
+      if (msg.includes('auth-timeout')) {
+        setAuthError('No hubo respuesta de Firebase. Verifica internet y vuelve a intentar.')
+      } else if (code.includes('configuration-not-found')) {
         setAuthError('Firebase Authentication no esta habilitado para este proyecto. Debes activar Email/Password en Firebase Console > Authentication > Sign-in method.')
       } else if (code.includes('email-already-in-use')) {
         try {
-          await signInWithEmail(email, password)
+          await withTimeout(signInWithEmail(cleanEmail, cleanPassword))
           // Si funciona, onAuthStateChanged completa el perfil owner o el ingreso normal.
         } catch (loginError) {
           const loginCode = String(loginError?.code || '')
