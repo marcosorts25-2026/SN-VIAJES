@@ -1,6 +1,6 @@
 import React from 'react'
 
-export default function LoginPanel({ onLogin, onCreateFirstOwner, loading, errorText, authUnavailable, firebaseConnection }) {
+export default function LoginPanel({ onLogin, onCreateFirstOwner, loading, loadingAction, errorText, authUnavailable, firebaseConnection }) {
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
 
@@ -58,10 +58,10 @@ export default function LoginPanel({ onLogin, onCreateFirstOwner, loading, error
           required
         />
         <button type="submit" disabled={loading || authUnavailable}>
-          {loading ? 'Ingresando...' : 'Ingresar'}
+          {loadingAction === 'login' ? 'Ingresando...' : 'Ingresar'}
         </button>
         <button type="button" onClick={createFirstOwner} disabled={loading || authUnavailable}>
-          {loading ? 'Procesando...' : 'Crear primer propietario'}
+          {loadingAction === 'create' ? 'Procesando...' : 'Crear primer propietario'}
         </button>
       </form>
 

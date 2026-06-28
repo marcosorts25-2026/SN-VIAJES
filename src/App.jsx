@@ -60,7 +60,7 @@ export default function App() {
   const isHomeView = view === null
   const [authConfigured, setAuthConfigured] = React.useState(true)
   const [authReady, setAuthReady] = React.useState(false)
-  const [authBusy, setAuthBusy] = React.useState(false)
+  const [authAction, setAuthAction] = React.useState('')
   const [authError, setAuthError] = React.useState('')
   const [currentUser, setCurrentUser] = React.useState(null)
   const [currentProfile, setCurrentProfile] = React.useState(null)
@@ -68,6 +68,7 @@ export default function App() {
     status: 'checking',
     message: 'Comprobando conexión...'
   })
+  const authBusy = Boolean(authAction)
 
   const canAccessAdmin = [ROLE_OWNER, ROLE_ADMIN].includes(String(currentProfile?.role || '').toLowerCase())
 
@@ -230,7 +231,7 @@ export default function App() {
       return
     }
 
-    setAuthBusy(true)
+    setAuthAction('login')
     setAuthError('')
     try {
       await withTimeout(signInWithEmail(cleanEmail, cleanPassword))
@@ -247,7 +248,7 @@ export default function App() {
         setAuthError(error?.message || 'No se pudo iniciar sesión.')
       }
     } finally {
-      setAuthBusy(false)
+      setAuthAction('')
     }
   }
 
@@ -263,7 +264,7 @@ export default function App() {
       return
     }
 
-    setAuthBusy(true)
+    setAuthAction('create')
     setAuthError('')
     try {
       await withTimeout(signUpWithEmail(cleanEmail, cleanPassword))
@@ -293,9 +294,18 @@ export default function App() {
         setAuthError(error?.message || 'No se pudo crear el primer propietario.')
       }
     } finally {
-      setAuthBusy(false)
+      setAuthAction('')
     }
   }
+
+  React.useEffect(() => {
+    if (!authAction) return
+    const timer = setTimeout(() => {
+      setAuthError('La operación tardó demasiado y se destrabó automáticamente. Intenta de nuevo.')
+      setAuthAction('')
+    }, 12000)
+    return () => clearTimeout(timer)
+  }, [authAction])
 
   const doLogout = async () => {
     setAuthError('')
@@ -352,6 +362,7 @@ export default function App() {
             onLogin={doLogin}
             onCreateFirstOwner={doCreateFirstOwner}
             loading={authBusy}
+            loadingAction={authAction}
             errorText={authError}
             authUnavailable={!authConfigured}
             firebaseConnection={firebaseConnection}
