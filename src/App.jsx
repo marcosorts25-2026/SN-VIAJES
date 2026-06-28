@@ -7,6 +7,7 @@ import visualLogo from './assets/somos-noche-logo.svg'
 import LoginPanel from './LoginPanel'
 import UserManagementPanel from './UserManagementPanel'
 import {
+  checkFirebaseConnection,
   ROLE_ADMIN,
   ROLE_OWNER,
   ensureBootstrapOwner,
@@ -63,6 +64,10 @@ export default function App() {
   const [authError, setAuthError] = React.useState('')
   const [currentUser, setCurrentUser] = React.useState(null)
   const [currentProfile, setCurrentProfile] = React.useState(null)
+  const [firebaseConnection, setFirebaseConnection] = React.useState({
+    status: 'checking',
+    message: 'Comprobando conexión...'
+  })
 
   const canAccessAdmin = [ROLE_OWNER, ROLE_ADMIN].includes(String(currentProfile?.role || '').toLowerCase())
 
@@ -167,6 +172,28 @@ export default function App() {
     return () => {
       mounted = false
       if (typeof unsubscribe === 'function') unsubscribe()
+    }
+  }, [])
+
+  React.useEffect(() => {
+    let mounted = true
+    let timer = null
+
+    const runCheck = async () => {
+      const result = await checkFirebaseConnection()
+      if (!mounted) return
+      setFirebaseConnection({
+        status: result.ok ? 'ok' : 'error',
+        message: result.message || (result.ok ? 'Conectado a Firebase' : 'Sin conexión con Firebase')
+      })
+    }
+
+    runCheck()
+    timer = setInterval(runCheck, 15000)
+
+    return () => {
+      mounted = false
+      if (timer) clearInterval(timer)
     }
   }, [])
 
@@ -327,6 +354,7 @@ export default function App() {
             loading={authBusy}
             errorText={authError}
             authUnavailable={!authConfigured}
+            firebaseConnection={firebaseConnection}
           />
         )}
 

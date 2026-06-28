@@ -1,8 +1,13 @@
 import React from 'react'
 
-export default function LoginPanel({ onLogin, onCreateFirstOwner, loading, errorText, authUnavailable }) {
+export default function LoginPanel({ onLogin, onCreateFirstOwner, loading, errorText, authUnavailable, firebaseConnection }) {
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
+
+  const connectionStatus = String(firebaseConnection?.status || 'checking')
+  const connectionMessage = String(firebaseConnection?.message || 'Comprobando conexión...')
+  const statusColor = connectionStatus === 'ok' ? '#2e7d32' : (connectionStatus === 'error' ? '#c62828' : '#6b7280')
+  const statusLabel = connectionStatus === 'ok' ? 'Firebase conectado' : (connectionStatus === 'error' ? 'Firebase sin conexión' : 'Comprobando Firebase')
 
   function submit(event) {
     event.preventDefault()
@@ -18,6 +23,12 @@ export default function LoginPanel({ onLogin, onCreateFirstOwner, loading, error
     <section className="details" style={{ maxWidth: 480, margin: '1.5rem auto' }}>
       <h2>Ingreso de usuarios</h2>
       <p>Accede con tu usuario y contraseña para usar la app.</p>
+
+      <div style={{ border: `1px solid ${statusColor}`, background: '#ffffff', color: statusColor, borderRadius: 8, padding: '8px 10px', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ width: 10, height: 10, borderRadius: '50%', background: statusColor, display: 'inline-block' }} />
+        <strong>{statusLabel}</strong>
+        <span style={{ opacity: 0.85 }}>{connectionMessage}</span>
+      </div>
 
       {authUnavailable && (
         <div style={{ border: '1px solid #c62828', background: '#fff3f3', color: '#8a1c1c', borderRadius: 8, padding: 10, marginBottom: 10 }}>

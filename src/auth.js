@@ -56,6 +56,40 @@ export async function isAuthConfigured() {
   }
 }
 
+export async function checkFirebaseConnection() {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      return { ok: false, message: 'Sin internet' }
+    }
+
+    const cfg = await getFirebaseConfig()
+    const apiKey = String(cfg?.apiKey || '').trim()
+    if (!apiKey) return { ok: false, message: 'Falta apiKey de Firebase' }
+
+    const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:createAuthUri?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        identifier: 'healthcheck@example.com',
+        continueUri: 'https://localhost'
+      })
+    })
+
+    if (response.ok) {
+      return { ok: true, message: 'Conectado a Firebase' }
+    }
+
+    const payload = await response.json().catch(() => null)
+    const errorCode = String(payload?.error?.message || '')
+    if (errorCode.includes('PROJECT_NOT_FOUND')) return { ok: false, message: 'Proyecto Firebase no encontrado' }
+    if (errorCode.includes('API_KEY_INVALID')) return { ok: false, message: 'apiKey inválida' }
+
+    return { ok: false, message: `Firebase no responde (${response.status})` }
+  } catch (error) {
+    return { ok: false, message: 'Sin conexión con Firebase' }
+  }
+}
+
 export async function subscribeAuthState(handler) {
   const { auth } = await getFirebaseCore()
   const { onAuthStateChanged } = await import('firebase/auth')
