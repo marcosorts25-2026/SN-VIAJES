@@ -67,6 +67,8 @@ function emptyRutaForm() {
     Modalidad_Cobro: 'Viaje Cerrado',
     Precio_Base: '',
     Precio_Por_Pasajero: '',
+    RRPP_Cobra: false,
+    RRPP_Ganancia_Por_Asiento: '',
     Excedente_Cobra: false,
     Recargo_Excedente: ''
   }
@@ -513,7 +515,19 @@ export default function AdminPanel() {
       return
     }
 
-    const { ID_Ruta, ID_Vehiculo, Origen_Pueblo, Destino_Final, Modalidad_Cobro, Precio_Base, Precio_Por_Pasajero, Excedente_Cobra, Recargo_Excedente } = rutaForm
+    const {
+      ID_Ruta,
+      ID_Vehiculo,
+      Origen_Pueblo,
+      Destino_Final,
+      Modalidad_Cobro,
+      Precio_Base,
+      Precio_Por_Pasajero,
+      RRPP_Cobra,
+      RRPP_Ganancia_Por_Asiento,
+      Excedente_Cobra,
+      Recargo_Excedente
+    } = rutaForm
     if (!ID_Ruta || !Origen_Pueblo || !Destino_Final || !Precio_Por_Pasajero) {
       alert('Completa todos los campos obligatorios: ID, origen, destino y precio por pasajero')
       return
@@ -536,6 +550,8 @@ export default function AdminPanel() {
           Modalidad_Cobro,
           Precio_Base: toWholeNumber(Precio_Base, 0),
           Precio_Por_Pasajero: toWholeNumber(Precio_Por_Pasajero, 0),
+          RRPP_Cobra: Boolean(RRPP_Cobra),
+          RRPP_Ganancia_Por_Asiento: toWholeNumber(RRPP_Ganancia_Por_Asiento, 0),
           Excedente_Cobra: Boolean(Excedente_Cobra),
           Recargo_Excedente: toWholeNumber(Recargo_Excedente, 0)
         }
@@ -557,6 +573,8 @@ export default function AdminPanel() {
       Modalidad_Cobro: r.Modalidad_Cobro || 'Viaje Cerrado',
       Precio_Base: numberInputValue(r.Precio_Base),
       Precio_Por_Pasajero: numberInputValue(r.Precio_Por_Pasajero),
+      RRPP_Cobra: Boolean(r.RRPP_Cobra),
+      RRPP_Ganancia_Por_Asiento: numberInputValue(r.RRPP_Ganancia_Por_Asiento),
       Excedente_Cobra: Boolean(r.Excedente_Cobra),
       Recargo_Excedente: numberInputValue(r.Recargo_Excedente)
     })
@@ -584,6 +602,8 @@ export default function AdminPanel() {
               Modalidad_Cobro: editingRutaForm.Modalidad_Cobro,
               Precio_Base: toWholeNumber(editingRutaForm.Precio_Base, 0),
               Precio_Por_Pasajero: toWholeNumber(editingRutaForm.Precio_Por_Pasajero, 0),
+              RRPP_Cobra: Boolean(editingRutaForm.RRPP_Cobra),
+              RRPP_Ganancia_Por_Asiento: toWholeNumber(editingRutaForm.RRPP_Ganancia_Por_Asiento, 0),
               Excedente_Cobra: Boolean(editingRutaForm.Excedente_Cobra),
               Recargo_Excedente: toWholeNumber(editingRutaForm.Recargo_Excedente, 0)
             }
@@ -745,6 +765,11 @@ export default function AdminPanel() {
                 <input list="town-options" placeholder="Origen_Pueblo" value={rutaForm.Origen_Pueblo} onChange={e => setRutaForm({ ...rutaForm, Origen_Pueblo: e.target.value })} />
                 <input list="town-options" placeholder="Destino_Final" value={rutaForm.Destino_Final} onChange={e => setRutaForm({ ...rutaForm, Destino_Final: e.target.value })} />
                 <input type="text" inputMode="numeric" placeholder="Precio por Pasajero ($)" value={numberInputValue(rutaForm.Precio_Por_Pasajero)} onChange={e => setRutaForm({ ...rutaForm, Precio_Por_Pasajero: e.target.value })} style={{ fontWeight: 'bold' }} />
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input type="checkbox" checked={rutaForm.RRPP_Cobra} onChange={e => setRutaForm({ ...rutaForm, RRPP_Cobra: e.target.checked })} />
+                  Cobra RRPP
+                </label>
+                <input type="text" inputMode="numeric" placeholder="Ganancia RRPP x asiento" value={numberInputValue(rutaForm.RRPP_Ganancia_Por_Asiento)} onChange={e => setRutaForm({ ...rutaForm, RRPP_Ganancia_Por_Asiento: e.target.value })} />
                 <select value={rutaForm.Modalidad_Cobro} onChange={e => setRutaForm({ ...rutaForm, Modalidad_Cobro: e.target.value })}>
                   <option>Viaje Cerrado</option>
                   <option>Por Pasajero</option>
@@ -763,6 +788,7 @@ export default function AdminPanel() {
                   <li key={r.ID_Ruta} style={{ marginBottom: '.35rem' }}>
                     <strong>{r.ID_Ruta}</strong> - {r.Origen_Pueblo} a {r.Destino_Final}
                     {' - '}${Number(r.Precio_Por_Pasajero || 0).toLocaleString('es-AR')}/pasajero
+                    {r.RRPP_Cobra ? ` + RRPP $${Number(r.RRPP_Ganancia_Por_Asiento || 0).toLocaleString('es-AR')}/asiento` : ''}
                     {' - '}{r.Modalidad_Cobro}
                     {r.Excedente_Cobra ? ` (Excedente: $${Number(r.Recargo_Excedente || 0).toLocaleString('es-AR')})` : ''}
                     <button type="button" onClick={() => openEditRuta(r.ID_Ruta)} style={{ marginLeft: 8 }}>Editar</button>
@@ -817,6 +843,11 @@ export default function AdminPanel() {
             <input list="town-options" value={editingRutaForm.Origen_Pueblo} onChange={e => setEditingRutaForm({ ...editingRutaForm, Origen_Pueblo: e.target.value })} placeholder="Origen_Pueblo" />
             <input list="town-options" value={editingRutaForm.Destino_Final} onChange={e => setEditingRutaForm({ ...editingRutaForm, Destino_Final: e.target.value })} placeholder="Destino_Final" />
             <input type="text" inputMode="numeric" value={numberInputValue(editingRutaForm.Precio_Por_Pasajero)} onChange={e => setEditingRutaForm({ ...editingRutaForm, Precio_Por_Pasajero: e.target.value })} placeholder="Precio por Pasajero ($)" style={{ fontWeight: 'bold' }} />
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <input type="checkbox" checked={editingRutaForm.RRPP_Cobra} onChange={e => setEditingRutaForm({ ...editingRutaForm, RRPP_Cobra: e.target.checked })} />
+              Cobra RRPP
+            </label>
+            <input type="text" inputMode="numeric" value={numberInputValue(editingRutaForm.RRPP_Ganancia_Por_Asiento)} onChange={e => setEditingRutaForm({ ...editingRutaForm, RRPP_Ganancia_Por_Asiento: e.target.value })} placeholder="Ganancia RRPP x asiento" />
             <select value={editingRutaForm.Modalidad_Cobro} onChange={e => setEditingRutaForm({ ...editingRutaForm, Modalidad_Cobro: e.target.value })}>
               <option>Viaje Cerrado</option>
               <option>Por Pasajero</option>

@@ -22,6 +22,15 @@ function formatCurrency(value) {
   }
 }
 
+function rrppPerSeat(route) {
+  if (!route || !route.RRPP_Cobra) return 0
+  return Number(route.RRPP_Ganancia_Por_Asiento || 0)
+}
+
+function effectiveSeatPrice(route) {
+  return Number(route?.Precio_Por_Pasajero || 0) + rrppPerSeat(route)
+}
+
 function companyIdFromRoute(route, vehiculoById) {
   if (!route || typeof route !== 'object') return ''
   if (route.ID_Empresa) return route.ID_Empresa
@@ -155,7 +164,8 @@ export default function QuoteEngine() {
   }
 
   function copyResultText(item) {
-    const text = `Empresa: ${item.empresa.Nombre_Empresa}\nVehículo: ${item.vehiculo.Tipo_Vehiculo} (${item.vehiculo.ID_Vehiculo})\nCapacidad: ${item.seats} asientos${item.extraAllowed ? ` +${item.extraAllowed} extra` : ''}\nModalidad: ${item.Modalidad_Cobro}\nPrecio base: ${formatCurrency(item.Precio_Base)}\nCosto total: ${formatCurrency(item.C_total)}\nCosto por pax: ${formatCurrency(item.C_pax)}\nRecargo excedente: ${formatCurrency(item.extraChargeFromRoute || 0)}`
+    const rrppSeat = rrppPerSeat(item)
+    const text = `Empresa: ${item.empresa.Nombre_Empresa}\nVehículo: ${item.vehiculo.Tipo_Vehiculo} (${item.vehiculo.ID_Vehiculo})\nCapacidad: ${item.seats} asientos${item.extraAllowed ? ` +${item.extraAllowed} extra` : ''}\nModalidad: ${item.Modalidad_Cobro}\nPrecio base: ${formatCurrency(item.Precio_Base)}\nPrecio por pasajero: ${formatCurrency(item.Precio_Por_Pasajero || 0)}\nGanancia RRPP por asiento: ${formatCurrency(rrppSeat)}\nPrecio final por pasajero: ${formatCurrency(effectiveSeatPrice(item))}\nCosto total: ${formatCurrency(item.C_total)}\nCosto por pax: ${formatCurrency(item.C_pax)}\nRecargo excedente: ${formatCurrency(item.extraChargeFromRoute || 0)}`
     navigator.clipboard.writeText(text).then(() => alert('Cotización copiada'))
   }
 
@@ -201,8 +211,8 @@ export default function QuoteEngine() {
                 const extraPassengers = Math.max(0, Pnum - seats)
                 const extraChargeFromExcedente = (r.Excedente_Cobra ? (Number(r.Recargo_Excedente || 0) * extraPassengers) : 0)
 
-                // usar precio por pasajero definido en la ruta
-                const chargePerPax = Number(r.Precio_Por_Pasajero || 0)
+                const rrppSeat = rrppPerSeat(r)
+                const chargePerPax = effectiveSeatPrice(r)
                 const baseTripCost = Number(r.Precio_Base)
 
                 // revenue/profit calculations
@@ -226,7 +236,9 @@ export default function QuoteEngine() {
 
                     <div className="prices">
                       <div>Precio base: <strong>{formatCurrency(r.Precio_Base)}</strong></div>
-                      <div>Precio por pasajero (que cobras): <strong className={chargePerPax > 0 ? 'metric-positive' : 'metric-warning'}>{formatCurrency(chargePerPax)}</strong></div>
+                      <div>Precio por pasajero (ruta): <strong>{formatCurrency(r.Precio_Por_Pasajero || 0)}</strong></div>
+                      <div>Ganancia RRPP por asiento: <strong>{formatCurrency(rrppSeat)}</strong></div>
+                      <div>Precio final por pasajero (que cobras): <strong className={chargePerPax > 0 ? 'metric-positive' : 'metric-warning'}>{formatCurrency(chargePerPax)}</strong></div>
 
                       <div>Ingresos si llena {seats} asientos: <strong>{formatCurrency(revenueIfFull)}</strong></div>
                       <div>Ingresos por {Pnum} pax: <strong>{formatCurrency(revenueActual)}</strong></div>

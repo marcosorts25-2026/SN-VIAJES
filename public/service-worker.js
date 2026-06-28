@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'snt-pwa-20260628-1'
+const CACHE_VERSION = 'snt-pwa-20260628-2'
 const SHELL_CACHE = `${CACHE_VERSION}-shell`
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`
 const ACTIVE_CACHES = new Set([SHELL_CACHE, RUNTIME_CACHE])

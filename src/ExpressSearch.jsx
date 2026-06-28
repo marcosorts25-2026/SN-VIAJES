@@ -30,6 +30,15 @@ function formatNumber(value) {
   return numeric.toLocaleString('es-AR')
 }
 
+function rrppPerSeat(route) {
+  if (!route || !route.RRPP_Cobra) return 0
+  return Number(route.RRPP_Ganancia_Por_Asiento || 0)
+}
+
+function effectiveSeatPrice(route) {
+  return Number(route?.Precio_Por_Pasajero || 0) + rrppPerSeat(route)
+}
+
 function resolveTrafficContext(route, empresaById, vehiculoById) {
   const vehicle = route?.ID_Vehiculo ? vehiculoById.get(route.ID_Vehiculo) : null
   const companyId = route?.ID_Empresa || vehicle?.ID_Empresa || ''
@@ -118,7 +127,8 @@ export default function ExpressSearch({ onBack }) {
             seats,
             extraSeats,
             unitsAvailable: Number(companyVehicle?.Unidades_Disponibles ?? route.Unidades_Disponibles ?? 1),
-            pricePerPax: Number(route.Precio_Por_Pasajero || 0),
+            rrppSeatPrice: rrppPerSeat(route),
+            pricePerPax: effectiveSeatPrice(route),
             basePrice: Number(route.Precio_Base || 0),
             recargoExcedente: Number(route.Recargo_Excedente || 0)
           }
@@ -197,6 +207,10 @@ export default function ExpressSearch({ onBack }) {
                 <dd>{formatCurrency(route.pricePerPax)}</dd>
               </div>
               <div>
+                <dt>RRPP x asiento</dt>
+                <dd>{formatCurrency(route.rrppSeatPrice)}</dd>
+              </div>
+              <div>
                 <dt>Precio base</dt>
                 <dd>{formatCurrency(route.basePrice)}</dd>
               </div>
@@ -222,6 +236,7 @@ export default function ExpressSearch({ onBack }) {
               <th style={{ textAlign: 'right', borderBottom: '1px solid #ddd', padding: 6 }}>Excedente</th>
               <th style={{ textAlign: 'right', borderBottom: '1px solid #ddd', padding: 6 }}>Unidades</th>
               <th style={{ textAlign: 'right', borderBottom: '1px solid #ddd', padding: 6 }}>Precio pax</th>
+              <th style={{ textAlign: 'right', borderBottom: '1px solid #ddd', padding: 6 }}>RRPP x asiento</th>
               <th style={{ textAlign: 'right', borderBottom: '1px solid #ddd', padding: 6 }}>Precio base</th>
               <th style={{ textAlign: 'right', borderBottom: '1px solid #ddd', padding: 6 }}>Recargo excedente</th>
               <th style={{ textAlign: 'left', borderBottom: '1px solid #ddd', padding: 6 }}>Ruta</th>
@@ -238,6 +253,7 @@ export default function ExpressSearch({ onBack }) {
                 <td style={{ borderBottom: '1px solid #eee', padding: 6, textAlign: 'right' }}>{formatNumber(route.extraSeats)}</td>
                 <td style={{ borderBottom: '1px solid #eee', padding: 6, textAlign: 'right' }}>{formatNumber(route.unitsAvailable)}</td>
                 <td style={{ borderBottom: '1px solid #eee', padding: 6, textAlign: 'right' }}>{formatCurrency(route.pricePerPax)}</td>
+                <td style={{ borderBottom: '1px solid #eee', padding: 6, textAlign: 'right' }}>{formatCurrency(route.rrppSeatPrice)}</td>
                 <td style={{ borderBottom: '1px solid #eee', padding: 6, textAlign: 'right' }}>{formatCurrency(route.basePrice)}</td>
                 <td style={{ borderBottom: '1px solid #eee', padding: 6, textAlign: 'right' }}>{formatCurrency(route.recargoExcedente)}</td>
                 <td style={{ borderBottom: '1px solid #eee', padding: 6 }}>{route.ID_Ruta || 'Sin ID'}</td>

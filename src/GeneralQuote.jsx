@@ -45,6 +45,15 @@ function normalizeText(value) {
   return String(value || '').trim().toLowerCase()
 }
 
+function rrppPerSeat(route) {
+  if (!route || !route.RRPP_Cobra) return 0
+  return Number(route.RRPP_Ganancia_Por_Asiento || 0)
+}
+
+function effectiveSeatPrice(route) {
+  return Number(route?.Precio_Por_Pasajero || 0) + rrppPerSeat(route)
+}
+
 function todayIso() {
   return new Date().toISOString().slice(0, 10)
 }
@@ -133,7 +142,7 @@ function suggestedPricesForDestination(rutas, destination) {
   return (Array.isArray(rutas) ? rutas : []).reduce((acc, route) => {
     if (normalizeText(route.Destino_Final) !== destinationKey) return acc
     const townKey = normalizeText(route.Origen_Pueblo)
-    const price = Number(route.Precio_Por_Pasajero || 0)
+    const price = effectiveSeatPrice(route)
     if (townKey && price > 0 && !acc[townKey]) acc[townKey] = price
     return acc
   }, {})
@@ -375,7 +384,7 @@ function optimizeScenarios(units, demandByTown, topK = 3) {
         capacity: choice.option.capacity,
         emptySeats: Math.max(0, choice.option.capacity - choice.assigned),
         cost: choice.cost,
-        precioPorPasajero: Number(choice.option.route.Precio_Por_Pasajero || 0)
+        precioPorPasajero: effectiveSeatPrice(choice.option.route)
       })
 
       dfs(unitIndex + 1, remaining, assignments, totalAssigned + choice.assigned, totalCost + choice.cost)
@@ -458,7 +467,8 @@ function buildRevenuePriorityScenario(units, demandByTown, pricesByTown = {}) {
 
       const assigned = Math.min(needed, option.capacity)
       const costInfo = routeCostForPassengers(option, assigned)
-      const pricePerPax = Number(pricesByTown[option.townKey] ?? option.route.Precio_Por_Pasajero ?? 0)
+      const routeSeatPrice = effectiveSeatPrice(option.route)
+      const pricePerPax = Number(pricesByTown[option.townKey] ?? routeSeatPrice ?? 0)
       const revenue = pricePerPax * assigned
       const balance = revenue - costInfo.cost
 
@@ -496,7 +506,7 @@ function buildRevenuePriorityScenario(units, demandByTown, pricesByTown = {}) {
       capacity: bestChoice.option.capacity,
       emptySeats: Math.max(0, bestChoice.option.capacity - bestChoice.assigned),
       cost: bestChoice.cost,
-      precioPorPasajero: Number(bestChoice.option.route.Precio_Por_Pasajero || 0)
+      precioPorPasajero: effectiveSeatPrice(bestChoice.option.route)
     })
 
     totalAssigned += bestChoice.assigned
@@ -565,7 +575,7 @@ function computeFinancials(scenario, pricesByTown = {}) {
 
 function estimateReboundDelayMinutes(route) {
   const base = Number(route?.Precio_Base || 0)
-  const perPassenger = Number(route?.Precio_Por_Pasajero || 0)
+  const perPassenger = effectiveSeatPrice(route)
   const rough = 24 + Math.round(base / 22000) + Math.round(perPassenger / 3000)
   return Math.max(20, Math.min(140, rough))
 }
@@ -899,7 +909,8 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
         if (reassigned <= 0) return
 
         const newCostInfo = routeCostForPassengers(option, reassigned)
-        const newPricePerPax = Number(activeSheet?.pricesByTown?.[option.townKey] ?? option.route.Precio_Por_Pasajero ?? 0)
+        const routeSeatPrice = effectiveSeatPrice(option.route)
+        const newPricePerPax = Number(activeSheet?.pricesByTown?.[option.townKey] ?? routeSeatPrice ?? 0)
         const newRevenue = newPricePerPax * reassigned
         const newBalance = newRevenue - newCostInfo.cost
 
@@ -975,7 +986,8 @@ export default function GeneralQuote({ initialSheetId = '' } = {}) {
 
     const reassigned = Math.min(neededAtTarget, Number(option.capacity || 0))
     const newCostInfo = routeCostForPassengers(option, reassigned)
-    const newPricePerPax = Number(activeSheet?.pricesByTown?.[option.townKey] ?? option.route.Precio_Por_Pasajero ?? 0)
+    const routeSeatPrice = effectiveSeatPrice(option.route)
+    const newPricePerPax = Number(activeSheet?.pricesByTown?.[option.townKey] ?? routeSeatPrice ?? 0)
     const newRevenue = newPricePerPax * reassigned
     const newBalance = newRevenue - newCostInfo.cost
 
