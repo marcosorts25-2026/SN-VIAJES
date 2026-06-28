@@ -1,6 +1,7 @@
 {
   "rules": {
     "snt_users": {
+      ".read": "auth != null",
       "$uid": {
         ".read": "auth != null",
         ".write": "auth != null && (auth.uid === $uid || root.child('snt_users').child(auth.uid).child('role').val() === 'owner' || root.child('snt_users').child(auth.uid).child('role').val() === 'admin')"
