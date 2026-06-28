@@ -264,6 +264,16 @@ export default function AdminPanel() {
     })
   }
 
+  function closeEditVehiculoModal() {
+    setEditingVehiculoId('')
+    setEditingVehiculoForm(emptyVehiculoForm())
+  }
+
+  function closeEditRutaModal() {
+    setEditingRutaId('')
+    setEditingRutaForm(emptyRutaForm())
+  }
+
   function restoreBackupData() {
     if (!confirmTypedAction('Recuperar respaldo reemplaza los datos actuales por el ultimo respaldo local.', 'RECUPERAR')) return
     const restored = restoreLatestBackup()
@@ -487,13 +497,10 @@ export default function AdminPanel() {
       )
     }
     const hasPhoneWarning = !isOptionalPhoneLikelyValid(editingVehiculoForm.Celular_Chofer)
+    closeEditVehiculoModal()
     persist(next)
-    setEditingVehiculoId('')
-    setEditingVehiculoForm(emptyVehiculoForm())
     if (hasPhoneWarning) {
       alert('Vehiculo actualizado. Aviso: el celular del chofer parece incompleto o con formato invalido.')
-    } else {
-      alert('Vehiculo actualizado')
     }
   }
 
@@ -610,10 +617,8 @@ export default function AdminPanel() {
           : r
       )
     }
+    closeEditRutaModal()
     persist(next)
-    setEditingRutaId('')
-    setEditingRutaForm(emptyRutaForm())
-    alert('Ruta actualizada')
   }
 
   function deleteRuta(id) {
@@ -804,7 +809,7 @@ export default function AdminPanel() {
 
       {editingVehiculoId && (
         <div className="modal">
-          <form onSubmit={saveEditVehiculo} className="modal-content">
+          <form key={editingVehiculoId} onSubmit={saveEditVehiculo} className="modal-content">
             <h3>Editar vehículo {editingVehiculoId}</h3>
             <input type="text" inputMode="numeric" value={numberInputValue(editingVehiculoForm.Capacidad_Asientos)} onChange={e => setEditingVehiculoForm({ ...editingVehiculoForm, Capacidad_Asientos: e.target.value })} placeholder="Capacidad_Asientos" />
             <input type="text" inputMode="numeric" value={numberInputValue(editingVehiculoForm.Capacidad_Excedente)} onChange={e => setEditingVehiculoForm({ ...editingVehiculoForm, Capacidad_Excedente: e.target.value })} placeholder="Capacidad_Excedente" />
@@ -822,7 +827,7 @@ export default function AdminPanel() {
             <input value={editingVehiculoForm.Celular_Chofer} onChange={e => setEditingVehiculoForm({ ...editingVehiculoForm, Celular_Chofer: e.target.value })} placeholder="Celular_Chofer" />
             <div style={{ display: 'flex', gap: 8 }}>
               <button type="submit">Guardar</button>
-              <button type="button" onClick={() => setEditingVehiculoId('')}>Cancelar</button>
+              <button type="button" onClick={closeEditVehiculoModal}>Cancelar</button>
             </div>
           </form>
         </div>
@@ -830,7 +835,7 @@ export default function AdminPanel() {
 
       {editingRutaId && (
         <div className="modal">
-          <form onSubmit={saveEditRuta} className="modal-content">
+          <form key={editingRutaId} onSubmit={saveEditRuta} className="modal-content">
             <h3>Editar ruta {editingRutaId}</h3>
             <select value={editingRutaForm.ID_Vehiculo} onChange={e => setEditingRutaForm({ ...editingRutaForm, ID_Vehiculo: e.target.value })}>
               <option value="">Ruta general de empresa</option>
@@ -860,7 +865,7 @@ export default function AdminPanel() {
             <input type="text" inputMode="numeric" value={numberInputValue(editingRutaForm.Recargo_Excedente)} onChange={e => setEditingRutaForm({ ...editingRutaForm, Recargo_Excedente: e.target.value })} placeholder="Recargo_Excedente" />
             <div style={{ display: 'flex', gap: 8 }}>
               <button type="submit">Guardar</button>
-              <button type="button" onClick={() => setEditingRutaId('')}>Cancelar</button>
+              <button type="button" onClick={closeEditRutaModal}>Cancelar</button>
             </div>
           </form>
         </div>
