@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: pass-mp-gateway
+    runtime: node
+    rootDir: services/mp-gateway
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: CORS_ORIGINS
+        value: https://sntviajes.web.app
+      - key: FRONTEND_BASE_URL
+        value: https://sntviajes.web.app
+      - key: MP_STATEMENT_DESCRIPTOR
+        value: VENTAPASS
+      - key: MP_SOURCE_TAG
+        value: PASSSNT
+      - key: FIREBASE_PROJECT_ID
+        value: somos-noche-transporte
+      - key: FIREBASE_DATABASE_URL
+        value: https://somos-noche-transporte-default-rtdb.firebaseio.com
+      - key: MP_ACCESS_TOKEN
+        sync: false
+      - key: MP_WEBHOOK_SECRET
+        sync: false
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false
